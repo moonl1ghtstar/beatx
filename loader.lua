@@ -61,49 +61,46 @@ local function createLoaderGui()
 	gui.IgnoreGuiInset = true
 	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
-	local dim = Instance.new("Frame")
-	dim.Name = "Dim"
-	dim.Size = UDim2.fromScale(1, 1)
-	dim.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-	dim.BackgroundTransparency = 0.35
-	dim.BorderSizePixel = 0
-	dim.Parent = gui
-
 	local card = Instance.new("Frame")
 	card.Name = "Card"
-	card.AnchorPoint = Vector2.new(0.5, 0.5)
-	card.Position = UDim2.fromScale(0.5, 0.5)
-	card.Size = UDim2.fromOffset(430, 215)
+	card.AnchorPoint = Vector2.new(1, 1)
+	card.Position = UDim2.new(1, -24, 1, -24)
+	card.Size = UDim2.fromOffset(390, 158)
 	card.BackgroundColor3 = Color3.fromRGB(12, 13, 18)
+	card.BackgroundTransparency = 0.02
 	card.BorderSizePixel = 0
 	card.Parent = gui
 
 	local corner = Instance.new("UICorner")
-	corner.CornerRadius = UDim.new(0, 14)
+	corner.CornerRadius = UDim.new(0, 12)
 	corner.Parent = card
 
 	local stroke = Instance.new("UIStroke")
 	stroke.Color = Color3.fromRGB(255, 120, 185)
 	stroke.Thickness = 1
-	stroke.Transparency = 0.35
+	stroke.Transparency = 0.2
 	stroke.Parent = card
 
 	local gradient = Instance.new("UIGradient")
 	gradient.Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, Color3.fromRGB(25, 26, 36)),
-		ColorSequenceKeypoint.new(0.55, Color3.fromRGB(14, 15, 22)),
-		ColorSequenceKeypoint.new(1, Color3.fromRGB(38, 18, 35)),
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(28, 22, 36)),
+		ColorSequenceKeypoint.new(0.48, Color3.fromRGB(12, 13, 18)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(16, 22, 40)),
 	})
 	gradient.Rotation = 25
 	gradient.Parent = card
 
 	local accent = Instance.new("Frame")
 	accent.Name = "Accent"
-	accent.Position = UDim2.fromOffset(0, 0)
-	accent.Size = UDim2.new(1, 0, 0, 3)
+	accent.Position = UDim2.fromOffset(16, 14)
+	accent.Size = UDim2.fromOffset(48, 3)
 	accent.BackgroundColor3 = Color3.fromRGB(255, 96, 170)
 	accent.BorderSizePixel = 0
 	accent.Parent = card
+
+	local accentCorner = Instance.new("UICorner")
+	accentCorner.CornerRadius = UDim.new(1, 0)
+	accentCorner.Parent = accent
 
 	local accentGradient = Instance.new("UIGradient")
 	accentGradient.Color = ColorSequence.new({
@@ -116,12 +113,13 @@ local function createLoaderGui()
 	local title = Instance.new("TextLabel")
 	title.Name = "Title"
 	title.BackgroundTransparency = 1
-	title.Position = UDim2.fromOffset(0, 38)
-	title.Size = UDim2.new(1, 0, 0, 64)
+	title.Position = UDim2.fromOffset(16, 24)
+	title.Size = UDim2.fromOffset(160, 34)
 	title.Font = Enum.Font.GothamBlack
 	title.Text = "BeatX"
 	title.TextColor3 = Color3.fromRGB(255, 255, 255)
-	title.TextScaled = true
+	title.TextSize = 30
+	title.TextXAlignment = Enum.TextXAlignment.Left
 	title.Parent = card
 
 	local titleGradient = Instance.new("UIGradient")
@@ -135,23 +133,23 @@ local function createLoaderGui()
 	local subtitle = Instance.new("TextLabel")
 	subtitle.Name = "Subtitle"
 	subtitle.BackgroundTransparency = 1
-	subtitle.Position = UDim2.fromOffset(34, 104)
-	subtitle.Size = UDim2.new(1, -68, 0, 20)
-	subtitle.Font = Enum.Font.Gotham
-	subtitle.Text = "Beat Bounce utility loader"
-	subtitle.TextColor3 = Color3.fromRGB(165, 166, 185)
-	subtitle.TextSize = 14
-	subtitle.TextXAlignment = Enum.TextXAlignment.Center
+	subtitle.Position = UDim2.fromOffset(182, 31)
+	subtitle.Size = UDim2.new(1, -198, 0, 22)
+	subtitle.Font = Enum.Font.GothamBold
+	subtitle.Text = "LOADER"
+	subtitle.TextColor3 = Color3.fromRGB(255, 170, 215)
+	subtitle.TextSize = 12
+	subtitle.TextXAlignment = Enum.TextXAlignment.Right
 	subtitle.Parent = card
 
 	local status = Instance.new("TextLabel")
 	status.Name = "Status"
 	status.BackgroundTransparency = 1
-	status.Position = UDim2.fromOffset(34, 137)
-	status.Size = UDim2.new(1, -68, 0, 22)
+	status.Position = UDim2.fromOffset(16, 70)
+	status.Size = UDim2.new(1, -32, 0, 22)
 	status.Font = Enum.Font.GothamMedium
 	status.Text = "Loading... Waiting"
-	status.TextColor3 = Color3.fromRGB(190, 190, 205)
+	status.TextColor3 = Color3.fromRGB(220, 220, 232)
 	status.TextSize = 15
 	status.TextXAlignment = Enum.TextXAlignment.Left
 	status.Parent = card
@@ -159,8 +157,8 @@ local function createLoaderGui()
 	local percent = Instance.new("TextLabel")
 	percent.Name = "Percent"
 	percent.BackgroundTransparency = 1
-	percent.Position = UDim2.fromOffset(34, 137)
-	percent.Size = UDim2.new(1, -68, 0, 22)
+	percent.Position = UDim2.fromOffset(16, 70)
+	percent.Size = UDim2.new(1, -32, 0, 22)
 	percent.Font = Enum.Font.GothamBold
 	percent.Text = "0%"
 	percent.TextColor3 = Color3.fromRGB(235, 235, 245)
@@ -170,8 +168,8 @@ local function createLoaderGui()
 
 	local progressTrack = Instance.new("Frame")
 	progressTrack.Name = "ProgressTrack"
-	progressTrack.Position = UDim2.fromOffset(34, 170)
-	progressTrack.Size = UDim2.new(1, -68, 0, 8)
+	progressTrack.Position = UDim2.fromOffset(16, 104)
+	progressTrack.Size = UDim2.new(1, -32, 0, 6)
 	progressTrack.BackgroundColor3 = Color3.fromRGB(35, 36, 48)
 	progressTrack.BorderSizePixel = 0
 	progressTrack.Parent = card
@@ -199,26 +197,51 @@ local function createLoaderGui()
 	})
 	fillGradient.Parent = progressFill
 
+	local log = Instance.new("TextLabel")
+	log.Name = "Log"
+	log.BackgroundTransparency = 1
+	log.Position = UDim2.fromOffset(16, 120)
+	log.Size = UDim2.new(1, -32, 0, 24)
+	log.Font = Enum.Font.Code
+	log.Text = "[BeatX] Waiting for startup"
+	log.TextColor3 = Color3.fromRGB(145, 148, 165)
+	log.TextSize = 12
+	log.TextXAlignment = Enum.TextXAlignment.Left
+	log.TextYAlignment = Enum.TextYAlignment.Top
+	log.TextWrapped = true
+	log.Parent = card
+
 	gui.Parent = parent
-	return gui, status, percent, progressFill, stroke
+	return gui, status, percent, progressFill, stroke, log
 end
 
 function LoaderController.new()
-	local gui, status, percent, progressFill, stroke = createLoaderGui()
-	return setmetatable({
+	local gui, status, percent, progressFill, stroke, log = createLoaderGui()
+	local self = setmetatable({
 		Progress = 0,
 		Gui = gui,
 		Status = status,
 		Percent = percent,
 		ProgressFill = progressFill,
 		Stroke = stroke,
+		Log = log,
+		Logs = {},
 	}, LoaderController)
+	shared.ACTIVE_LOADER = self
+	return self
 end
 
 function LoaderController:Update(message, progress)
 	self.Progress = progress or self.Progress
+	table.insert(self.Logs, string.format("[BeatX] %s", tostring(message)))
+	if #self.Logs > 2 then
+		table.remove(self.Logs, 1)
+	end
 	if self.Status then
 		self.Status.Text = "Loading... " .. tostring(message)
+	end
+	if self.Log then
+		self.Log.Text = table.concat(self.Logs, "\n")
 	end
 	if self.Percent then
 		self.Percent.Text = string.format("%d%%", self.Progress)
@@ -234,9 +257,17 @@ function LoaderController:Update(message, progress)
 end
 
 function LoaderController:Abort(message)
+	table.insert(self.Logs, "[BeatX] " .. tostring(message))
+	if #self.Logs > 2 then
+		table.remove(self.Logs, 1)
+	end
 	if self.Status then
 		self.Status.Text = "Loading... " .. tostring(message)
 		self.Status.TextColor3 = Color3.fromRGB(255, 100, 100)
+	end
+	if self.Log then
+		self.Log.Text = table.concat(self.Logs, "\n")
+		self.Log.TextColor3 = Color3.fromRGB(255, 135, 135)
 	end
 	if self.Stroke then
 		self.Stroke.Color = Color3.fromRGB(255, 100, 100)
@@ -294,6 +325,6 @@ end)
 if not ok then
 	controller:Abort("Startup failed: " .. tostring(errorMessage))
 else
-	task.wait(5)
+	task.wait(3)
 	controller:Destroy()
 end
