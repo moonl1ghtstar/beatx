@@ -1,5 +1,23 @@
 -- Main loads WindUI, core modules, then feature modules from one base URL.
 
+local BEATX_GAME_ID = 5385674359
+
+local function isSupportedGame()
+	return game.GameId == BEATX_GAME_ID
+end
+
+-- Restriction gate: BeatX may run only in Beat Bounce (GameId 5385674359).
+-- Kept in loader.lua/main.lua so no future UI change can bypass it. Runs
+-- before any WindUI fetch, GUI, feature load or input connection can start.
+if not game:IsLoaded() then
+	game.Loaded:Wait()
+end
+
+if not isSupportedGame() then
+	warn("[BeatX] Restricted to game " .. tostring(BEATX_GAME_ID) .. ". Current game: " .. tostring(game.GameId) .. ". Aborting.")
+	return {}
+end
+
 local BeatX = shared.BeatX or {}
 BeatX.Name = "BeatX"
 BeatX.Version = "0.1.0"
@@ -113,6 +131,11 @@ end
 function Main.Start()
 	if BeatX.Started then
 		return BeatX
+	end
+
+	if not isSupportedGame() then
+		warn("[BeatX] Restricted to game " .. tostring(BEATX_GAME_ID) .. ". Aborting.")
+		return nil
 	end
 
 	updateLoading("Loading configuration...", 60)

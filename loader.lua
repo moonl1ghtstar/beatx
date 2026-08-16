@@ -14,11 +14,24 @@
 ]]--
 
 local MAIN_URL = "https://raw.githubusercontent.com/moonl1ghtstar/beatx/main/main.lua"
+local BEATX_GAME_ID = 5385674359
 
 if shared.BeatX and type(shared.BeatX.Destroy) == "function" then
 	pcall(function()
 		shared.BeatX:Destroy()
 	end)
+end
+
+-- Game restriction: BeatX runs only in Beat Bounce (GameId 5385674359).
+-- This check is the earliest startup gate: before any GUI, WindUI fetch,
+-- feature load or input connection can happen. Unsupported games get nothing.
+if not game:IsLoaded() then
+	game.Loaded:Wait()
+end
+
+if game.GameId ~= BEATX_GAME_ID then
+	warn("[BeatX] Restricted to game " .. tostring(BEATX_GAME_ID) .. ". Current game: " .. tostring(game.GameId) .. ". Aborting.")
+	return
 end
 
 local LoaderController = {}
@@ -332,33 +345,24 @@ function LoaderController:Destroy()
 	end
 end
 
-local function detectEnvironment()
-	local meta = {
-		[0] = { Title = "Universal", Supported = false },
-		[5385674359] = { Title = "Beat Bounce", Supported = true },
-	}
+local GAME_ENVIRONMENTS = {
+	[BEATX_GAME_ID] = { Title = "Beat Bounce", Supported = true },
+}
 
-	local environment = meta[game.GameId]
-	if not environment then
-		for _, candidate in pairs(meta) do
-			if candidate.Places and candidate.Places[game.PlaceId] then
-				environment = candidate
-				break
-			end
-		end
-	end
-	return environment or meta[0]
+local function detectEnvironment()
+	return GAME_ENVIRONMENTS[game.GameId]
 end
 
 local controller = LoaderController.new()
-if not game:IsLoaded() then
-	game.Loaded:Wait()
-end
 
 local ok, errorMessage = pcall(function()
 	controller:Update("Booting BeatX...", 5)
 	controller:Update("Detecting Game...", 20)
-	shared.BeatXEnvironment = detectEnvironment()
+	local environment = detectEnvironment()
+	if not environment or not environment.Supported then
+		error("Unsupported game: " .. tostring(game.GameId))
+	end
+	shared.BeatXEnvironment = environment
 	controller:Update("Preparing BeatX...", 35)
 
 	-- Main owns all remaining remote module loading.
