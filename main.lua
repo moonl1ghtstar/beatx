@@ -61,13 +61,23 @@ end
 
 local Main = {}
 
+local function updateLoading(message, progress)
+	local loader = shared.ACTIVE_LOADER
+	if loader and type(loader.Update) == "function" then
+		loader:Update(message, progress)
+	end
+end
+
 function Main.Start()
 	if BeatX.Started then
 		return BeatX
 	end
 
+	updateLoading("Loading configuration...", 60)
 	BeatX.Config = loadModule("core/Config.lua")
+	updateLoading("Loading WindUI...", 66)
 	BeatX.WindUI = loadstring(game:HttpGet(WINDUI_URL, true))()
+	updateLoading("Preparing feature manager...", 72)
 	local FeatureManager = loadModule("core/FeatureManager.lua")
 	BeatX.FeatureManager = FeatureManager.new(BeatX)
 
@@ -80,6 +90,7 @@ function Main.Start()
 		end,
 	}
 	BeatX.UI:Initialize()
+	updateLoading("Initializing user interface...", 78)
 
 	local featureFiles = {
 		"features/Analysis.lua",
@@ -92,8 +103,10 @@ function Main.Start()
 	for _, path in ipairs(featureFiles) do
 		BeatX.FeatureManager:Register(loadModule(path))
 	end
+	updateLoading("Registering features...", 86)
 
 	BeatX.FeatureManager:EnableAll(BeatX.Config.Features)
+	updateLoading("Enabling features...", 94)
 	BeatX.Started = true
 	shared.BeatX = BeatX
 	return BeatX
