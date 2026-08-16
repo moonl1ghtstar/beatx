@@ -70,14 +70,38 @@ local function updateLoading(message, progress)
 	end
 end
 
+local function resolveWindUITheme()
+	local configuredTheme = BeatX.Config and BeatX.Config.UI and BeatX.Config.UI.Theme
+	local themes = type(BeatX.WindUI.GetThemes) == "function" and BeatX.WindUI:GetThemes() or nil
+
+	if type(configuredTheme) == "string" and type(themes) == "table" and themes[configuredTheme] then
+		return configuredTheme
+	end
+
+	if configuredTheme ~= nil then
+		warn(string.format("[BeatX] WindUI theme %q is unavailable; using Dark.", tostring(configuredTheme)))
+	end
+	return "Dark"
+end
+
 local function createBeatXWindow()
+	if BeatXWindow then
+		return BeatXWindow
+	end
+
+	if BeatX.WindUI.Window then
+		BeatXWindow = BeatX.WindUI.Window
+		BeatX.MenuWindow = BeatXWindow
+		return BeatXWindow
+	end
+
 	BeatXWindow = BeatX.WindUI:CreateWindow({
 		Title = BeatX.Name,
 		Icon = "music",
 		Author = "BeatX",
 		Folder = "BeatX",
 		Size = UDim2.fromOffset(580, 460),
-		Theme = BeatX.Config.UI.Theme,
+		Theme = resolveWindUITheme(),
 	})
 	BeatX.MenuWindow = BeatXWindow
 	return BeatXWindow
