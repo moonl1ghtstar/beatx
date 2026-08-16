@@ -61,6 +61,7 @@ end
 
 local Main = {}
 local UserInputService = game:GetService("UserInputService")
+local BeatXWindow = nil
 
 local function updateLoading(message, progress)
 	local loader = shared.ACTIVE_LOADER
@@ -69,14 +70,23 @@ local function updateLoading(message, progress)
 	end
 end
 
-local function getMenuWindow()
-	local ui = BeatX.UI
-	return (ui and (ui.Window or ui.Menu or ui.WindowInstance)) or BeatX.Window or BeatX.Menu
+local function createBeatXWindow()
+	BeatXWindow = BeatX.WindUI:CreateWindow({
+		Title = BeatX.Name,
+		Icon = "music",
+		Author = "BeatX",
+		Folder = "BeatX",
+		Size = UDim2.fromOffset(580, 460),
+		Theme = BeatX.Config.UI.Theme,
+	})
+	BeatX.MenuWindow = BeatXWindow
+	return BeatXWindow
 end
 
 local function toggleMenuWindow()
-	local window = getMenuWindow()
+	local window = BeatXWindow
 	if not window then
+		warn("[BeatX] Right Shift menu toggle unavailable: BeatXWindow has not been created.")
 		return
 	end
 
@@ -86,8 +96,8 @@ local function toggleMenuWindow()
 		window:Open()
 	elseif window.Closed == false and type(window.Close) == "function" then
 		window:Close()
-	elseif window.UIElements and window.UIElements.Main then
-		window.UIElements.Main.Visible = not window.UIElements.Main.Visible
+	else
+		warn("[BeatX] Right Shift menu toggle unavailable: WindUI Window has no Toggle/Open/Close method.")
 	end
 end
 
@@ -101,7 +111,10 @@ local function installMenuToggle()
 
 	local rightShiftDown = false
 	BeatX.MenuToggleInputConnection = UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
-		if gameProcessedEvent or input.KeyCode ~= Enum.KeyCode.RightShift or rightShiftDown then
+		if input.KeyCode ~= Enum.KeyCode.RightShift or rightShiftDown then
+			return
+		end
+		if gameProcessedEvent and not UserInputService:GetFocusedTextBox() then
 			return
 		end
 
@@ -138,6 +151,7 @@ function Main.Start()
 		end,
 	}
 	BeatX.UI:Initialize()
+	createBeatXWindow()
 	updateLoading("Initializing user interface...", 78)
 
 	local featureFiles = {
@@ -170,6 +184,13 @@ function BeatX:Destroy()
 		self.MenuToggleInputEndedConnection:Disconnect()
 		self.MenuToggleInputEndedConnection = nil
 	end
+	if self.MenuWindow and type(self.MenuWindow.Destroy) == "function" then
+		pcall(function()
+			self.MenuWindow:Destroy()
+		end)
+	end
+	self.MenuWindow = nil
+	BeatXWindow = nil
 	if self.FeatureManager then
 		self.FeatureManager:Destroy()
 	end
