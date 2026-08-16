@@ -5,8 +5,9 @@ BeatX.Name = "BeatX"
 BeatX.Version = "0.1.0"
 BeatX.Environment = shared.BeatXEnvironment
 
-local MODULE_BASE_URL = shared.BeatXModuleBase or "https://your-domain.example/BeatX/"
-local WINDUI_URL = shared.BeatXWindUIUrl or (MODULE_BASE_URL .. "libs/WindUI.lua")
+local MODULE_BASE_URL = shared.BeatXModuleBase or "https://raw.githubusercontent.com/moonl1ghtstar/beatx/tree/main/"
+local WINDUI_URL = shared.BeatXWindUIUrl
+	or "https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"
 local CACHE_FOLDER = "BeatXCache"
 
 local function cachePath(path)
@@ -66,7 +67,7 @@ function Main.Start()
 	end
 
 	BeatX.Config = loadModule("core/Config.lua")
-	BeatX.WindUI = loadSource("libs/WindUI.lua", WINDUI_URL)
+	BeatX.WindUI = loadstring(game:HttpGet(WINDUI_URL, true))()
 	local FeatureManager = loadModule("core/FeatureManager.lua")
 	BeatX.FeatureManager = FeatureManager.new(BeatX)
 

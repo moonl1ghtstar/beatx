@@ -1,6 +1,6 @@
 -- BeatX entry point. Replace URL with your hosted main.lua.
 
-local MAIN_URL = "https://your-domain.example/BeatX/main.lua"
+local MAIN_URL = "https://raw.githubusercontent.com/moonl1ghtstar/beatx/main/main.lua"
 
 if shared.BeatX and type(shared.BeatX.Destroy) == "function" then
 	pcall(function()
