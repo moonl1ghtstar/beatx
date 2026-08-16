@@ -170,6 +170,6 @@ end)
 if not ok then
 	controller:Abort("Startup failed: " .. tostring(errorMessage))
 else
-	task.wait(0.5)
+	task.wait(3)
 	controller:Destroy()
 end
