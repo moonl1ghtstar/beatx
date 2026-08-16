@@ -61,7 +61,8 @@ end
 
 local Main = {}
 local UserInputService = game:GetService("UserInputService")
-local BeatXWindow = nil
+local TweenService = game:GetService("TweenService")
+local BeatXMenu = nil
 
 local function updateLoading(message, progress)
 	local loader = shared.ACTIVE_LOADER
@@ -70,59 +71,12 @@ local function updateLoading(message, progress)
 	end
 end
 
-local function resolveWindUITheme()
-	local configuredTheme = BeatX.Config and BeatX.Config.UI and BeatX.Config.UI.Theme
-	local themes = type(BeatX.WindUI.GetThemes) == "function" and BeatX.WindUI:GetThemes() or nil
-
-	if type(configuredTheme) == "string" and type(themes) == "table" and themes[configuredTheme] then
-		return configuredTheme
-	end
-
-	if configuredTheme ~= nil then
-		warn(string.format("[BeatX] WindUI theme %q is unavailable; using Dark.", tostring(configuredTheme)))
-	end
-	return "Dark"
-end
-
-local function createBeatXWindow()
-	if BeatXWindow then
-		return BeatXWindow
-	end
-
-	if BeatX.WindUI.Window then
-		BeatXWindow = BeatX.WindUI.Window
-		BeatX.MenuWindow = BeatXWindow
-		return BeatXWindow
-	end
-
-	BeatXWindow = BeatX.WindUI:CreateWindow({
-		Title = BeatX.Name,
-		Icon = "music",
-		Author = "BeatX",
-		Folder = "BeatX",
-		Size = UDim2.fromOffset(580, 460),
-		Theme = resolveWindUITheme(),
-	})
-	BeatX.MenuWindow = BeatXWindow
-	return BeatXWindow
-end
-
-local function toggleMenuWindow()
-	local window = BeatXWindow
-	if not window then
-		warn("[BeatX] Right Shift menu toggle unavailable: BeatXWindow has not been created.")
+local function toggleMenu()
+	if not BeatXMenu then
+		warn("[BeatX] Right Shift menu toggle unavailable: BeatXMenu has not been created.")
 		return
 	end
-
-	if type(window.Toggle) == "function" then
-		window:Toggle()
-	elseif window.Closed == true and type(window.Open) == "function" then
-		window:Open()
-	elseif window.Closed == false and type(window.Close) == "function" then
-		window:Close()
-	else
-		warn("[BeatX] Right Shift menu toggle unavailable: WindUI Window has no Toggle/Open/Close method.")
-	end
+	BeatXMenu:Toggle()
 end
 
 local function installMenuToggle()
@@ -134,16 +88,19 @@ local function installMenuToggle()
 	end
 
 	local rightShiftDown = false
-	BeatX.MenuToggleInputConnection = UserInputService.InputBegan:Connect(function(input, gameProcessedEvent)
-		if input.KeyCode ~= Enum.KeyCode.RightShift or rightShiftDown then
+	BeatX.MenuToggleInputConnection = UserInputService.InputBegan:Connect(function(input)
+		if rightShiftDown then
 			return
 		end
-		if gameProcessedEvent and not UserInputService:GetFocusedTextBox() then
+		if input.KeyCode ~= Enum.KeyCode.RightShift then
+			return
+		end
+		if UserInputService:GetFocusedTextBox() then
 			return
 		end
 
 		rightShiftDown = true
-		toggleMenuWindow()
+		toggleMenu()
 	end)
 
 	BeatX.MenuToggleInputEndedConnection = UserInputService.InputEnded:Connect(function(input)
@@ -167,15 +124,28 @@ function Main.Start()
 	BeatX.FeatureManager = FeatureManager.new(BeatX)
 
 	-- UI adapter keeps WindUI replaceable. Features should use this adapter, not WindUI directly.
+	-- The menu itself is built from raw Roblox GUI primitives so it renders
+	-- identically on every executor and never touches WindUI internals.
 	BeatX.UI = {
 		Library = BeatX.WindUI,
 		Theme = BeatX.Config.UI.Theme,
 		Initialize = function(self)
 			self.Initialized = true
 		end,
+		CreateMenu = function(self)
+			if self.Menu then
+				return self.Menu
+			end
+			local MenuModule = loadModule("ui/Menu.lua")
+			local menu = MenuModule.new(BeatX)
+			BeatXMenu = menu
+			self.Menu = menu
+			BeatX.Menu = menu
+			return menu
+		end,
 	}
 	BeatX.UI:Initialize()
-	createBeatXWindow()
+	BeatX.UI:CreateMenu()
 	updateLoading("Initializing user interface...", 78)
 
 	local featureFiles = {
@@ -208,13 +178,16 @@ function BeatX:Destroy()
 		self.MenuToggleInputEndedConnection:Disconnect()
 		self.MenuToggleInputEndedConnection = nil
 	end
-	if self.MenuWindow and type(self.MenuWindow.Destroy) == "function" then
+	if self.Menu and type(self.Menu.Destroy) == "function" then
 		pcall(function()
-			self.MenuWindow:Destroy()
+			self.Menu:Destroy()
 		end)
 	end
-	self.MenuWindow = nil
-	BeatXWindow = nil
+	self.Menu = nil
+	if self.UI then
+		self.UI.Menu = nil
+	end
+	BeatXMenu = nil
 	if self.FeatureManager then
 		self.FeatureManager:Destroy()
 	end

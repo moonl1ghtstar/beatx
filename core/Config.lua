@@ -1,7 +1,7 @@
 return {
 	Debug = true,
 	UI = {
-		Theme = "Default",
+		Theme = "Dark",
 	},
 	Features = {
 		Analysis = true,
