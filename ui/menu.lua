@@ -146,19 +146,31 @@ local function buildRow(parent, label)
 	lbl.Position               = UDim2.fromOffset(0, 0)
 	lbl.Parent                 = row
 
+	local bar = Instance.new("Frame")
+	bar.Name                   = "AccentBar"
+	bar.BorderSizePixel        = 0
+	bar.BackgroundColor3       = Color3.fromRGB(90, 90, 90)
+	bar.Size                   = UDim2.new(0, 2, 1, 0)
+	bar.Position               = UDim2.new(1, 0, 0, 0)
+	bar.AnchorPoint            = Vector2.new(1, 0)
+	bar.Visible                = true
+	bar.Parent                 = row
+
 	local function refresh()
 		if on then
-			row.BackgroundColor3 = hov and C.RowHovOn or C.RowOn
-			lbl.TextColor3       = C.TxtOn
+			row.BackgroundColor3 = Color3.fromRGB(195, 96, 122)
+			lbl.TextColor3       = ACCENT
+			bar.BackgroundColor3 = ACCENT
 		else
 			row.BackgroundColor3 = hov and C.RowHov or C.RowOff
 			lbl.TextColor3       = C.TxtOff
+			bar.BackgroundColor3 = Color3.fromRGB(90, 90, 90)
 		end
 	end
 
 	row.MouseButton1Click:Connect(function() on = not on; refresh() end)
-	row.MouseEnter:Connect(function()        hov = true;  refresh() end)
-	row.MouseLeave:Connect(function()        hov = false; refresh() end)
+	row.MouseEnter:Connect(function()        hov = true;  if not on then refresh() end end)
+	row.MouseLeave:Connect(function()        hov = false; if not on then refresh() end end)
 
 	row.Parent = parent
 	return row
