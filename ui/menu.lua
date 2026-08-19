@@ -17,6 +17,7 @@ Menu.__index = Menu
 
 local TweenService     = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
+local RunService       = game:GetService("RunService")
 
 -- ── Debug ──────────────────────────────────────────────────────────────────────
 -- Set true to print collapse hierarchy + apply distinct debug colors per layer.
@@ -129,6 +130,17 @@ end
 
 local function contentHeight(itemCount)
 	return SEP_H + itemCount * ROW_H
+end
+
+local function snapCanvasTop(canvas, targetTop)
+	targetTop = targetTop or 2
+	local deltaY = targetTop - canvas.AbsolutePosition.Y
+	if math.abs(deltaY) < 0.5 then
+		return
+	end
+	local pos = canvas.Position
+	canvas.Position = UDim2.fromOffset(pos.X.Offset, pos.Y.Offset + deltaY)
+	RunService.Heartbeat:Wait()
 end
 local function buildRow(parent, label)
 	local on  = false
@@ -502,6 +514,7 @@ function Menu:Open()
 	task.defer(function()
 		if not self.Visible or self.Destroyed then return end
 		self.Canvas.Position = UDim2.fromOffset(self.Gui.AbsoluteSize.X * 0.5, 2)
+		snapCanvasTop(self.Canvas, 2)
 		print(string.format('[BeatX][Layout] Open CanvasAbs=(%.0f,%.0f) CanvasPos=%s', self.Canvas.AbsolutePosition.X, self.Canvas.AbsolutePosition.Y, tostring(self.Canvas.Position)))
 		for i, colDef in ipairs(self.Columns) do
 			local container, slot = colDef.Container, colDef.Slot
@@ -516,8 +529,7 @@ function Menu:Open()
 				local levelHeight = container.AbsoluteSize.Y
 				if levelHeight <= 0 then levelHeight = catHeight end
 				local levelReferenceY = 1080 + levelHeight
-				-- Level reference uses center of visible header as coordinate point.
-				screenY = vh - (levelReferenceY * scaleY) - (HDR_H * 0.5)
+				screenY = vh - (levelReferenceY * scaleY)
 			else
 				screenY = vh - (refY * scaleY)
 			end
@@ -556,8 +568,7 @@ function Menu:Close()
 				local levelHeight = container.AbsoluteSize.Y
 				if levelHeight <= 0 then levelHeight = catHeight end
 				local levelReferenceY = 1080 + levelHeight
-				-- Level reference uses center of visible header as coordinate point.
-				screenY = vh - (levelReferenceY * scaleY) - (HDR_H * 0.5)
+				screenY = vh - (levelReferenceY * scaleY)
 			else
 				screenY = vh - (refY * scaleY)
 			end
