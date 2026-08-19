@@ -527,8 +527,8 @@ function Menu:Open()
 			local screenX = refX * scaleX
 						local screenY
 			if i == 4 then
-				local levelHeight = container.AbsoluteSize.Y
-				if levelHeight <= 0 then levelHeight = catHeight end
+				local levelHeight = HDR_H
+				if levelHeight <= 0 then levelHeight = HDR_H end
 				local levelReferenceY = 1080 + levelHeight
 				screenY = vh - (levelReferenceY * scaleY)
 			else
@@ -566,8 +566,8 @@ function Menu:Close()
 		local screenX = refX * scaleX
 					local screenY
 			if i == 4 then
-				local levelHeight = container.AbsoluteSize.Y
-				if levelHeight <= 0 then levelHeight = catHeight end
+				local levelHeight = HDR_H
+				if levelHeight <= 0 then levelHeight = HDR_H end
 				local levelReferenceY = 1080 + levelHeight
 				screenY = vh - (levelReferenceY * scaleY)
 			else
