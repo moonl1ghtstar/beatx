@@ -123,22 +123,26 @@ local function screenToParentOffset(guiObject, screenPosition)
 	return screenPosition - parent.AbsolutePosition
 end
 
-local function categoryStartScreenPosition(index, categoryHeight, viewportWidth, viewportHeight)
+local CATEGORY_START_REFERENCE = {
+	BeatX = { X = 1920, Y = 520 },
+	Creator = { X = 1920, Y = 560 },
+	Cosmetic = { X = 950, Y = 0 },
+	Level = { X = 1440, Y = 1080 },
+	Status = { X = 1920, Y = 800 },
+	Display = { X = 1920, Y = 850 },
+	Utility = { X = 620, Y = 0 },
+	Speedhack = { X = 930, Y = 0 },
+}
+
+local function categoryStartScreenPosition(categoryName, categoryHeight, viewportWidth, viewportHeight)
+	local reference = CATEGORY_START_REFERENCE[categoryName]
 	local scaleX = viewportWidth / 1920
 	local scaleY = viewportHeight / 1080
-	local referenceX, referenceY
-	if index == 1 then referenceX, referenceY = 1920, 520
-	elseif index == 2 then referenceX, referenceY = 1920, 560
-	elseif index == 3 then referenceX, referenceY = 950, 0
-	elseif index == 4 then referenceX, referenceY = 1440, 1080
-	elseif index == 5 then referenceX, referenceY = 1920, 800
-	elseif index == 6 then referenceX, referenceY = 1920, 850
-	elseif index == 7 then referenceX, referenceY = 620, 0
-	elseif index == 8 then referenceX, referenceY = 930, 0
+	local screenX = reference.X * scaleX
+	local screenY = viewportHeight - (reference.Y * scaleY)
+	if categoryName == "Level" then
+		screenY = viewportHeight - (1080 * scaleY) - categoryHeight
 	end
-	local screenX = referenceX * scaleX
-	local screenY = viewportHeight - (referenceY * scaleY)
-	if index == 4 then screenY = viewportHeight - (1080 * scaleY) - categoryHeight end
 	return Vector2.new(screenX, screenY)
 end
 
@@ -520,7 +524,7 @@ function Menu:Open()
 			local catHeight = colDef.Slot.Size.Y.Offset
 			local vw, vh = self.Gui.AbsoluteSize.X, self.Gui.AbsoluteSize.Y
 			local finalPosition = screenToParentOffset(container, container.AbsolutePosition)
-			local startPosition = screenToParentOffset(container, categoryStartScreenPosition(i, catHeight, vw, vh))
+			local startPosition = screenToParentOffset(container, categoryStartScreenPosition(colDef.Def.Name, catHeight, vw, vh))
 			container.Position = UDim2.fromOffset(startPosition.X, startPosition.Y)
 			container.Visible = true
 			local delay = (i - 1) * 0.035
@@ -540,7 +544,7 @@ function Menu:Close()
 		local container = colDef.Container
 		local catHeight = colDef.Slot.Size.Y.Offset
 		local vw, vh = self.Gui.AbsoluteSize.X, self.Gui.AbsoluteSize.Y
-		local startPosition = screenToParentOffset(container, categoryStartScreenPosition(i, catHeight, vw, vh))
+		local startPosition = screenToParentOffset(container, categoryStartScreenPosition(colDef.Def.Name, catHeight, vw, vh))
 		local delay, duration = (i - 1) * 0.035, 0.23
 		maxDuration = math.max(maxDuration, duration + delay)
 		local tw = TweenService:Create(container, TweenInfo.new(duration, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out, 0, false, delay), { Position = UDim2.fromOffset(startPosition.X, startPosition.Y) })
