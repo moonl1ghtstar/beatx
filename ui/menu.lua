@@ -145,7 +145,6 @@ local function categoryStartScreenPosition(categoryName, categoryHeight, viewpor
 	end
 
 	-- Temporary animation correction: move every entrance 540px downward.
-	screenY = screenY + 540
 	return Vector2.new(screenX, screenY)
 end
 
@@ -530,6 +529,7 @@ function Menu:Open()
 			local finalScreenPosition = container.AbsolutePosition
 			local finalPosition = screenToParentOffset(container, finalScreenPosition)
 			local startPosition = screenToParentOffset(container, categoryStartScreenPosition(colDef.Def.Name, catHeight, vw, vh))
+			startPosition = startPosition + Vector2.new(0, 540)
 			container.Position = UDim2.fromOffset(startPosition.X, startPosition.Y)
 			local delay = (i - 1) * 0.035
 			local tw = TweenService:Create(container, TweenInfo.new(0.3, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out, 0, false, delay), { Position = UDim2.fromOffset(finalPosition.X, finalPosition.Y) })
@@ -549,6 +549,7 @@ function Menu:Close()
 		local catHeight = colDef.Slot.Size.Y.Offset
 		local vw, vh = self.Gui.AbsoluteSize.X, self.Gui.AbsoluteSize.Y
 		local startPosition = screenToParentOffset(container, categoryStartScreenPosition(colDef.Def.Name, catHeight, vw, vh))
+			startPosition = startPosition + Vector2.new(0, 540)
 		local delay, duration = (i - 1) * 0.035, 0.23
 		maxDuration = math.max(maxDuration, duration + delay)
 		local tw = TweenService:Create(container, TweenInfo.new(duration, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out, 0, false, delay), { Position = UDim2.fromOffset(startPosition.X, startPosition.Y) })
