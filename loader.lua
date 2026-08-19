@@ -366,7 +366,9 @@ local ok, errorMessage = pcall(function()
 	controller:Update("Preparing BeatX...", 35)
 
 	-- Main owns all remaining remote module loading.
-	local Main = loadstring(game:HttpGet(MAIN_URL, true))()
+	local mainUrl = MAIN_URL .. "?v=" .. tostring(os.time())
+print(string.format('[BeatX][Loader] Loading main.lua from %s', mainUrl))
+local Main = loadstring(game:HttpGet(mainUrl, true))()
 	assert(Main and type(Main.Start) == "function", "main.lua must expose Main.Start()")
 
 	controller:Update("Loading Main...", 55)
