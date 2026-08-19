@@ -223,28 +223,30 @@ end
 --    • Each column's content (ColBg) and header (accent) provide all visible color.
 --      No outer "menu background" rectangle — each column is self-contained.
 --
-local function buildColumn(def, canvas)
+local function buildColumn(def, parentRow)
 	local expandedContentH = contentHeight(#def.Items)
 	local expandedTotalH   = HDR_H + expandedContentH
 
-	-- wrap: structural only.
-	-- BackgroundTransparency=1 — wrap renders NO background.
-	-- Height is controlled manually: expandedTotalH when open, HDR_H when collapsed.
-	-- canvas AutomaticSize=Y will track the tallest wrap automatically.
+	local container = Instance.new("Frame")
+	container.Name                   = "Container_" .. def.Name
+	container.BackgroundTransparency = 1
+	container.BorderSizePixel        = 0
+	container.Size                   = UDim2.new(0, COL_W, 0, expandedTotalH)
+	container.Parent                 = parentRow
+
 	local wrap = Instance.new("Frame")
 	wrap.Name                   = "Wrap_" .. def.Name
-	wrap.BackgroundTransparency = 1      -- ← TRANSPARENT: zero dark bg from wrap
+	wrap.BackgroundTransparency = 1
 	wrap.BorderSizePixel        = 0
 	wrap.Size                   = UDim2.new(0, COL_W, 0, expandedTotalH)
-	wrap.ClipsDescendants       = true   -- content can't bleed outside wrap bounds
+	wrap.ClipsDescendants       = true
+	wrap.Parent                 = container
 
-	-- Debug: give wrap a visible color to confirm it's the right object
 	if DEBUG_UI then
 		wrap.BackgroundColor3       = DBG.Wrap
-		wrap.BackgroundTransparency = 0.6  -- semi-transparent green in debug mode
+		wrap.BackgroundTransparency = 0.6
 	end
 
-	-- ── Header ────────────────────────────────────────────────────────────────
 	local hdr = Instance.new("Frame")
 	hdr.Name             = "Header"
 	hdr.BackgroundColor3 = C.HdrA
@@ -252,13 +254,9 @@ local function buildColumn(def, canvas)
 	hdr.Size             = UDim2.new(1, 0, 0, HDR_H)
 	hdr.Position         = UDim2.fromOffset(0, 0)
 	hdr.Parent           = wrap
-	-- No gradient: solid Color3.fromRGB(232, 56, 102) throughout
 
-	if DEBUG_UI then
-		hdr.BackgroundColor3 = DBG.Header   -- magenta in debug
-	end
+	if DEBUG_UI then hdr.BackgroundColor3 = DBG.Header end
 
-	-- +/- button: LEFT side, fixed 20px
 	local colBtn = Instance.new("TextButton")
 	colBtn.AutoButtonColor        = false
 	colBtn.BackgroundTransparency = 1
@@ -269,13 +267,12 @@ local function buildColumn(def, canvas)
 	colBtn.TextSize               = 14
 	colBtn.TextScaled             = false
 	colBtn.Size                   = UDim2.fromOffset(20, HDR_H)
-	colBtn.Position               = UDim2.fromOffset(0, 0)  -- LEFT edge
+	colBtn.Position               = UDim2.fromOffset(0, 0)
 	colBtn.TextXAlignment         = Enum.TextXAlignment.Center
 	colBtn.TextYAlignment         = Enum.TextYAlignment.Center
 	colBtn.ZIndex                 = 3
 	colBtn.Parent                 = hdr
 
-	-- Title: full header width → Center alignment = true mathematical center
 	local hdrLbl = Instance.new("TextLabel")
 	hdrLbl.BackgroundTransparency = 1
 	hdrLbl.BorderSizePixel        = 0
@@ -291,8 +288,6 @@ local function buildColumn(def, canvas)
 	hdrLbl.ZIndex                 = 2
 	hdrLbl.Parent                 = hdr
 
-	-- ── Content ───────────────────────────────────────────────────────────────
-	-- ClipsDescendants=true: height=0 → nothing renders, bg invisible.
 	local content = Instance.new("Frame")
 	content.Name              = "Content"
 	content.BackgroundColor3  = C.ColBg
@@ -302,9 +297,7 @@ local function buildColumn(def, canvas)
 	content.Size              = UDim2.new(1, 0, 0, expandedContentH)
 	content.Parent            = wrap
 
-	if DEBUG_UI then
-		content.BackgroundColor3 = DBG.Content   -- yellow in debug
-	end
+	if DEBUG_UI then content.BackgroundColor3 = DBG.Content end
 
 	local cList = Instance.new("UIListLayout")
 	cList.FillDirection = Enum.FillDirection.Vertical
@@ -324,27 +317,24 @@ local function buildColumn(def, canvas)
 		r.LayoutOrder = i + 1
 	end
 
-	-- ── Collapse logic ─────────────────────────────────────────────────────────
-	-- wrap shrinks to HDR_H: no remaining wrap area exists below header.
-	-- content shrinks to 0: its ColBg bg disappears entirely.
-	-- canvas.AutomaticSize=Y updates to tallest remaining wrap.
-	-- canvas.BackgroundTransparency=1: canvas renders no bg → nothing dark behind wrap.
 	local collapsed = false
 	colBtn.MouseButton1Click:Connect(function()
 		collapsed = not collapsed
 		colBtn.Text = collapsed and "+" or "-"
 		if collapsed then
-			content.Size = UDim2.new(1, 0, 0, 0)
-			wrap.Size    = UDim2.new(0, COL_W, 0, HDR_H)
+			content.Size   = UDim2.new(1, 0, 0, 0)
+			wrap.Size      = UDim2.new(0, COL_W, 0, HDR_H)
+			container.Size = UDim2.new(0, COL_W, 0, HDR_H)
 		else
-			content.Size = UDim2.new(1, 0, 0, expandedContentH)
-			wrap.Size    = UDim2.new(0, COL_W, 0, expandedTotalH)
+			content.Size   = UDim2.new(1, 0, 0, expandedContentH)
+			wrap.Size      = UDim2.new(0, COL_W, 0, expandedTotalH)
+			container.Size = UDim2.new(0, COL_W, 0, expandedTotalH)
 		end
-		-- Debug: print full hierarchy state after layout settles
-		dbgCollapse(def.Name, canvas, wrap, hdr, content)
+		-- Debug
+		-- dbgCollapse(def.Name, canvas, wrap, hdr, content)
 	end)
 
-	return wrap
+	return { Wrap = wrap, Container = container }
 end
 
 -- ── Menu.new ───────────────────────────────────────────────────────────────────
@@ -379,63 +369,69 @@ function Menu.new(BeatX)
 	blocker.ZIndex                 = 0
 	blocker.Parent                 = gui
 
-	local totalW = #CATS * COL_W + (#CATS - 1) * COL_GAP
+	local totalW = 7 * COL_W + 6 * COL_GAP -- 7 items wide
 
-	-- Canvas: changed to Frame so children are not clipped during entrance animation
 	local canvas = Instance.new("Frame")
 	canvas.Name                  = "Canvas"
 	canvas.AnchorPoint           = Vector2.new(0.5, 0.5)
 	canvas.Position              = UDim2.fromScale(0.5, 0.5)
 	canvas.Size                  = UDim2.new(0, totalW, 0, 0)
-	canvas.AutomaticSize         = Enum.AutomaticSize.Y
+	canvas.AutomaticSize         = Enum.AutomaticSize.XY
 	canvas.BackgroundTransparency = 1
 	canvas.BorderSizePixel       = 0
 	canvas.ZIndex                = 1
 	canvas.Parent                = gui
 
-	-- Debug: show canvas bg to confirm its bounds
 	if DEBUG_UI then
 		canvas.BackgroundColor3       = DBG.Canvas
-		canvas.BackgroundTransparency = 0.7  -- semi-transparent blue in debug
+		canvas.BackgroundTransparency = 0.7
 	end
 
-	local hLayout = Instance.new("UIListLayout")
-	hLayout.Name                = "HLayout"
-	hLayout.FillDirection       = Enum.FillDirection.Horizontal
-	hLayout.Padding             = UDim.new(0, COL_GAP)
-	hLayout.SortOrder           = Enum.SortOrder.LayoutOrder
-	hLayout.VerticalAlignment   = Enum.VerticalAlignment.Top
-	hLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
-	hLayout.Parent              = canvas
+	local vLayout = Instance.new("UIListLayout")
+	vLayout.Name = "VLayout"
+	vLayout.FillDirection = Enum.FillDirection.Vertical
+	vLayout.Padding = UDim.new(0, 10)
+	vLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	vLayout.Parent = canvas
+
+	local topRow = Instance.new("Frame")
+	topRow.Name = "TopRow"
+	topRow.BackgroundTransparency = 1
+	topRow.AutomaticSize = Enum.AutomaticSize.XY
+	topRow.LayoutOrder = 1
+	topRow.Parent = canvas
+
+	local topLayout = Instance.new("UIListLayout")
+	topLayout.FillDirection = Enum.FillDirection.Horizontal
+	topLayout.Padding = UDim.new(0, COL_GAP)
+	topLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	topLayout.Parent = topRow
+
+	local bottomRow = Instance.new("Frame")
+	bottomRow.Name = "BottomRow"
+	bottomRow.BackgroundTransparency = 1
+	bottomRow.AutomaticSize = Enum.AutomaticSize.XY
+	bottomRow.LayoutOrder = 2
+	bottomRow.Parent = canvas
+
+	local bottomLayout = Instance.new("UIListLayout")
+	bottomLayout.FillDirection = Enum.FillDirection.Horizontal
+	bottomLayout.Padding = UDim.new(0, COL_GAP)
+	bottomLayout.SortOrder = Enum.SortOrder.LayoutOrder
+	bottomLayout.Parent = bottomRow
 
 	local columns = {}
 	for i, def in ipairs(CATS) do
-		local col       = buildColumn(def, canvas)
-		col.LayoutOrder = i
-		col.Parent      = canvas
-		columns[i]      = col
+		local parentRow = (def.Name == "Speedhack") and bottomRow or topRow
+		local col = buildColumn(def, parentRow)
+		col.Container.LayoutOrder = i
+		col.Def = def
+		columns[i] = col
 	end
 
-	-- Debug: print initial state
-	if DEBUG_UI then
-		task.defer(function()
-			print("[BeatX DEBUG][COLLAPSE] === INITIAL STATE ===")
-			dbgObj("Canvas", canvas)
-			for i, col in ipairs(columns) do
-				local catName = CATS[i].Name
-				dbgObj("Canvas/Wrap_"..catName, col)
-				local hdr = col:FindFirstChild("Header")
-				local cnt = col:FindFirstChild("Content")
-				if hdr then dbgObj("Canvas/Wrap_"..catName.."/Header", hdr) end
-				if cnt then dbgObj("Canvas/Wrap_"..catName.."/Content", cnt) end
-			end
-		end)
-	end
-
-	-- Drag via first header
 	local dragging   = false
 	local dragOffset = Vector2.zero
-	local firstHdr   = columns[1] and columns[1]:FindFirstChild("Header")
+	local firstHdr   = columns[1].Wrap:FindFirstChild("Header")
 
 	if firstHdr then
 		firstHdr.InputBegan:Connect(function(inp)
@@ -466,14 +462,12 @@ function Menu.new(BeatX)
 	local menu = setmetatable({}, Menu)
 	menu.Gui          = gui
 	menu.Canvas       = canvas
-	menu.HLayout      = hLayout
 	menu.Blocker      = blocker
 	menu.Columns      = columns
 	menu.DragConns    = { dEnd, dMove }
 	menu.Visible      = false
 	menu.Destroyed    = false
 	menu.OnUtility    = {}
-	menu.ColsFinalPos = {}
 	menu._tweens      = {}
 
 	_instance = menu
@@ -485,50 +479,52 @@ function Menu.Get() return _instance end
 function Menu:Open()
 	if self.Visible then return end
 	self:_stopAnims()
-	self.Visible                  = true
-	self.Gui.Enabled              = true
-	self.Blocker.Visible          = true
+	self.Visible = true
 
-	if self.HLayout.Parent then
-		for i, col in ipairs(self.Columns) do
-			self.ColsFinalPos[i] = UDim2.fromOffset((i-1)*(COL_W+COL_GAP), 0)
-		end
-		self.HLayout.Parent = nil
+	for _, colDef in ipairs(self.Columns) do
+		colDef.Wrap.Visible = false
 	end
 
-	self.Canvas.AutomaticSize = Enum.AutomaticSize.None
+	self.Gui.Enabled = true
+	self.Blocker.Visible = true
 
-	for i, col in ipairs(self.Columns) do
-		local finalPos = self.ColsFinalPos[i] or UDim2.fromOffset((i-1)*(COL_W+COL_GAP), 0)
-		local catHeight = col.Size.Y.Offset
-		local startX, startY
-		
-		if i == 1 then startX, startY = 1920, 1080 - 520
-		elseif i == 2 then startX, startY = 1920, 1080 - 560
-		elseif i == 3 then startX, startY = 950, 1080 - 0
-		elseif i == 4 then startX, startY = 1440, -catHeight
-		elseif i == 5 then startX, startY = 1920, 1080 - 800
-		elseif i == 6 then startX, startY = 1920, 1080 - 850
-		elseif i == 7 then startX, startY = 620, 1080 - 0
-		elseif i == 8 then startX, startY = 930, 1080 - 0
-		end
-
-		col.Position = UDim2.fromOffset(startX, startY)
-
-		local delay = (i-1) * 0.035
-		local tw = TweenService:Create(
-			col,
-			TweenInfo.new(0.3, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out, 0, false, delay),
-			{ Position = finalPos }
-		)
-		table.insert(self._tweens, tw)
-		tw:Play()
-	end
-
-	task.delay(0.3 + 8*0.035, function()
+	task.defer(function()
 		if not self.Visible or self.Destroyed then return end
-		self.HLayout.Parent = self.Canvas
-		self.Canvas.AutomaticSize = Enum.AutomaticSize.Y
+
+		for i, colDef in ipairs(self.Columns) do
+			local wrap = colDef.Wrap
+			local container = colDef.Container
+			local catHeight = wrap.Size.Y.Offset
+
+			local refX, refY
+			if i == 1 then refX, refY = 1920, 520
+			elseif i == 2 then refX, refY = 1920, 560
+			elseif i == 3 then refX, refY = 950, 0
+			elseif i == 4 then refX, refY = 1440, catHeight + 1080
+			elseif i == 5 then refX, refY = 1920, 800
+			elseif i == 6 then refX, refY = 1920, 850
+			elseif i == 7 then refX, refY = 620, 0
+			elseif i == 8 then refX, refY = 930, 0
+			end
+
+			local startX = refX
+			local startY = 1080 - refY
+
+			local localX = startX - container.AbsolutePosition.X
+			local localY = startY - container.AbsolutePosition.Y
+
+			wrap.Position = UDim2.fromOffset(localX, localY)
+			wrap.Visible = true
+
+			local delay = (i - 1) * 0.035
+			local tw = TweenService:Create(
+				wrap,
+				TweenInfo.new(0.3, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out, 0, false, delay),
+				{ Position = UDim2.new(0, 0, 0, 0) }
+			)
+			table.insert(self._tweens, tw)
+			tw:Play()
+		end
 	end)
 end
 
@@ -537,33 +533,37 @@ function Menu:Close()
 	self:_stopAnims()
 	self.Visible = false
 
-	self.Canvas.AutomaticSize = Enum.AutomaticSize.None
-	self.HLayout.Parent = nil
-
 	local maxDuration = 0
-	for i, col in ipairs(self.Columns) do
-		local catHeight = col.Size.Y.Offset
-		local startX, startY
-		
-		if i == 1 then startX, startY = 1920, 1080 - 520
-		elseif i == 2 then startX, startY = 1920, 1080 - 560
-		elseif i == 3 then startX, startY = 950, 1080 - 0
-		elseif i == 4 then startX, startY = 1440, -catHeight
-		elseif i == 5 then startX, startY = 1920, 1080 - 800
-		elseif i == 6 then startX, startY = 1920, 1080 - 850
-		elseif i == 7 then startX, startY = 620, 1080 - 0
-		elseif i == 8 then startX, startY = 930, 1080 - 0
+	for i, colDef in ipairs(self.Columns) do
+		local wrap = colDef.Wrap
+		local container = colDef.Container
+		local catHeight = wrap.Size.Y.Offset
+
+		local refX, refY
+		if i == 1 then refX, refY = 1920, 520
+		elseif i == 2 then refX, refY = 1920, 560
+		elseif i == 3 then refX, refY = 950, 0
+		elseif i == 4 then refX, refY = 1440, catHeight + 1080
+		elseif i == 5 then refX, refY = 1920, 800
+		elseif i == 6 then refX, refY = 1920, 850
+		elseif i == 7 then refX, refY = 620, 0
+		elseif i == 8 then refX, refY = 930, 0
 		end
 
-		local endPos = UDim2.fromOffset(startX, startY)
-		local delay = (i-1) * 0.035
+		local startX = refX
+		local startY = 1080 - refY
+
+		local localX = startX - container.AbsolutePosition.X
+		local localY = startY - container.AbsolutePosition.Y
+
+		local delay = (i - 1) * 0.035
 		local duration = 0.23
 		maxDuration = math.max(maxDuration, duration + delay)
 
 		local tw = TweenService:Create(
-			col,
+			wrap,
 			TweenInfo.new(duration, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out, 0, false, delay),
-			{ Position = endPos }
+			{ Position = UDim2.fromOffset(localX, localY) }
 		)
 		table.insert(self._tweens, tw)
 		tw:Play()
@@ -573,8 +573,6 @@ function Menu:Close()
 		if self.Destroyed or self.Visible then return end
 		self.Blocker.Visible = false
 		self.Gui.Enabled = false
-		self.HLayout.Parent = self.Canvas
-		self.Canvas.AutomaticSize = Enum.AutomaticSize.Y
 	end)
 end
 
