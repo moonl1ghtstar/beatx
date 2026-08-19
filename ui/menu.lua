@@ -486,8 +486,11 @@ function Menu:Open()
 	self.Canvas.AnchorPoint = Vector2.new(0.5, 0)
 	self.Canvas.Position = UDim2.fromOffset(self.Gui.AbsoluteSize.X * 0.5, 2)
 	self.Blocker.Visible = true
+	self.Canvas.Position = UDim2.fromOffset(self.Gui.AbsoluteSize.X * 0.5, 2)
 	task.defer(function()
 		if not self.Visible or self.Destroyed then return end
+		self.Canvas.Position = UDim2.fromOffset(self.Gui.AbsoluteSize.X * 0.5, 2)
+		print(string.format('[BeatX][Layout] Open CanvasAbs=(%.0f,%.0f) CanvasPos=%s', self.Canvas.AbsolutePosition.X, self.Canvas.AbsolutePosition.Y, tostring(self.Canvas.Position)))
 		for i, colDef in ipairs(self.Columns) do
 			local container, slot = colDef.Container, colDef.Slot
 			local catHeight = slot.Size.Y.Offset
@@ -498,7 +501,7 @@ function Menu:Open()
 			local screenX = refX * scaleX
 			local screenY = (i == 4) and (vh - ((1080 * scaleY) + catHeight)) or (vh - (refY * scaleY))
 			local localX, localY = screenX - slot.AbsolutePosition.X, screenY - slot.AbsolutePosition.Y
-			if i <= 2 then
+			if i <= 3 then
 				print(string.format('[BeatX][Anim][Open] %s i=%d screenStart=(%.0f,%.0f) localStart=(%.0f,%.0f)', colDef.Def.Name, i, screenX, screenY, localX, localY))
 				container.Position = UDim2.fromOffset(localX, localY)
 				container.Visible = true
@@ -529,7 +532,7 @@ function Menu:Close()
 		local screenX = refX * scaleX
 		local screenY = (i == 4) and (vh - ((1080 * scaleY) + catHeight)) or (vh - (refY * scaleY))
 		local localX, localY = screenX - slot.AbsolutePosition.X, screenY - slot.AbsolutePosition.Y
-		if i <= 2 then
+		if i <= 3 then
 			print(string.format('[BeatX][Anim][Close] %s i=%d screenExit=(%.0f,%.0f) localExit=(%.0f,%.0f)', colDef.Def.Name, i, screenX, screenY, localX, localY))
 			local delay, duration = (i - 1) * 0.035, 0.23
 			maxDuration = math.max(maxDuration, duration + delay)
