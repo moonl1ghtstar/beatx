@@ -79,6 +79,7 @@ local function fetch(path, url)
 end
 
 local function loadSource(path, url)
+	print(string.format('[BeatX][Loader] Loading %s from %s', path, url))
 	local source = fetch(path, url)
 	assert(source, "BeatX module unavailable: " .. path)
 	local chunk, compileError = loadstring(source, "@" .. path)
