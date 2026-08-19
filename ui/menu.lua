@@ -18,7 +18,7 @@ Menu.__index = Menu
 local TweenService     = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local RunService       = game:GetService("RunService")
-local MENU_TOP_Y      = 2
+local MENU_TOP_Y      = -18
 
 -- ── Debug ──────────────────────────────────────────────────────────────────────
 -- Set true to print collapse hierarchy + apply distinct debug colors per layer.
@@ -134,7 +134,7 @@ local function contentHeight(itemCount)
 end
 
 local function snapCanvasTop(canvas, targetTop)
-	targetTop = targetTop or 2
+	targetTop = targetTop or MENU_TOP_Y
 	local deltaY = targetTop - canvas.AbsolutePosition.Y
 	if math.abs(deltaY) < 0.5 then
 		return
@@ -509,13 +509,13 @@ function Menu:Open()
 	for _, colDef in ipairs(self.Columns) do colDef.Container.Visible = false end
 	self.Gui.Enabled = true
 	self.Canvas.AnchorPoint = Vector2.new(0.5, 0)
-	self.Canvas.Position = UDim2.fromOffset(self.Gui.AbsoluteSize.X * 0.5, 2)
+	self.Canvas.Position = UDim2.fromOffset(self.Gui.AbsoluteSize.X * 0.5, MENU_TOP_Y)
 	self.Blocker.Visible = true
-	self.Canvas.Position = UDim2.fromOffset(self.Gui.AbsoluteSize.X * 0.5, 2)
+	self.Canvas.Position = UDim2.fromOffset(self.Gui.AbsoluteSize.X * 0.5, MENU_TOP_Y)
 	task.defer(function()
 		if not self.Visible or self.Destroyed then return end
-		self.Canvas.Position = UDim2.fromOffset(self.Gui.AbsoluteSize.X * 0.5, 2)
-		snapCanvasTop(self.Canvas, 2)
+		self.Canvas.Position = UDim2.fromOffset(self.Gui.AbsoluteSize.X * 0.5, MENU_TOP_Y)
+		snapCanvasTop(self.Canvas, MENU_TOP_Y)
 		print(string.format('[BeatX][Layout] Open CanvasAbs=(%.0f,%.0f) CanvasPos=%s', self.Canvas.AbsolutePosition.X, self.Canvas.AbsolutePosition.Y, tostring(self.Canvas.Position)))
 		for i, colDef in ipairs(self.Columns) do
 			local container, slot = colDef.Container, colDef.Slot
