@@ -8,7 +8,7 @@ local UserInputService = game:GetService("UserInputService")
 
 -- ── Debug ──────────────────────────────────────────────────────────────────────
 -- Set true to print collapse hierarchy + apply distinct debug colors per layer.
-local DEBUG_UI = true
+local DEBUG_UI = false
 
 local function dbgObj(path, obj)
 	if not DEBUG_UI then return end
