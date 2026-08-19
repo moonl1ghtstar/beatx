@@ -489,7 +489,6 @@ function Menu:Open()
 	self.Gui.Enabled              = true
 	self.Blocker.Visible          = true
 
-	-- Temporarily handle layout positioning
 	if self.HLayout.Parent then
 		for i, col in ipairs(self.Columns) do
 			self.ColsFinalPos[i] = UDim2.fromOffset((i-1)*(COL_W+COL_GAP), 0)
@@ -499,21 +498,22 @@ function Menu:Open()
 
 	self.Canvas.AutomaticSize = Enum.AutomaticSize.None
 
-	local DIRS = {
-		UDim2.new(0, 0, 0, -1500), -- BeatX
-		UDim2.new(0, 1500, 0, 0),  -- Creator
-		UDim2.new(0, 0, 0, 1500),  -- Cosmetic
-		UDim2.new(0, -1500, 0, 0), -- Level
-		UDim2.new(0, 0, 0, -1500), -- Status
-		UDim2.new(0, 1500, 0, 0),  -- Display
-		UDim2.new(0, 0, 0, 1500),  -- Utility
-		UDim2.new(0, -1500, 0, 0), -- Speedhack
-	}
-
 	for i, col in ipairs(self.Columns) do
 		local finalPos = self.ColsFinalPos[i] or UDim2.fromOffset((i-1)*(COL_W+COL_GAP), 0)
-		local startPos = finalPos + DIRS[i]
-		col.Position = startPos
+		local catHeight = col.Size.Y.Offset
+		local startX, startY
+		
+		if i == 1 then startX, startY = 1920, 1080 - 520
+		elseif i == 2 then startX, startY = 1920, 1080 - 560
+		elseif i == 3 then startX, startY = 950, 1080 - 0
+		elseif i == 4 then startX, startY = 1440, -catHeight
+		elseif i == 5 then startX, startY = 1920, 1080 - 800
+		elseif i == 6 then startX, startY = 1920, 1080 - 850
+		elseif i == 7 then startX, startY = 620, 1080 - 0
+		elseif i == 8 then startX, startY = 930, 1080 - 0
+		end
+
+		col.Position = UDim2.fromOffset(startX, startY)
 
 		local delay = (i-1) * 0.035
 		local tw = TweenService:Create(
@@ -540,22 +540,22 @@ function Menu:Close()
 	self.Canvas.AutomaticSize = Enum.AutomaticSize.None
 	self.HLayout.Parent = nil
 
-	local DIRS = {
-		UDim2.new(0, 0, 0, -1500), -- BeatX
-		UDim2.new(0, 1500, 0, 0),  -- Creator
-		UDim2.new(0, 0, 0, 1500),  -- Cosmetic
-		UDim2.new(0, -1500, 0, 0), -- Level
-		UDim2.new(0, 0, 0, -1500), -- Status
-		UDim2.new(0, 1500, 0, 0),  -- Display
-		UDim2.new(0, 0, 0, 1500),  -- Utility
-		UDim2.new(0, -1500, 0, 0), -- Speedhack
-	}
-
 	local maxDuration = 0
 	for i, col in ipairs(self.Columns) do
-		local finalPos = self.ColsFinalPos[i] or UDim2.fromOffset((i-1)*(COL_W+COL_GAP), 0)
-		local endPos = finalPos + DIRS[i]
+		local catHeight = col.Size.Y.Offset
+		local startX, startY
+		
+		if i == 1 then startX, startY = 1920, 1080 - 520
+		elseif i == 2 then startX, startY = 1920, 1080 - 560
+		elseif i == 3 then startX, startY = 950, 1080 - 0
+		elseif i == 4 then startX, startY = 1440, -catHeight
+		elseif i == 5 then startX, startY = 1920, 1080 - 800
+		elseif i == 6 then startX, startY = 1920, 1080 - 850
+		elseif i == 7 then startX, startY = 620, 1080 - 0
+		elseif i == 8 then startX, startY = 930, 1080 - 0
+		end
 
+		local endPos = UDim2.fromOffset(startX, startY)
 		local delay = (i-1) * 0.035
 		local duration = 0.23
 		maxDuration = math.max(maxDuration, duration + delay)
