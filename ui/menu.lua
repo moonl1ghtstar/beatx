@@ -129,42 +129,57 @@ local function buildRow(parent, label)
 	row.BorderSizePixel        = 0
 	row.Size                   = UDim2.new(1, 0, 0, ROW_H)
 	row.Text                   = ""
-	row.BackgroundColor3       = C.RowOff
+	row.BackgroundColor3       = Color3.new(0, 0, 0)
 	row.BackgroundTransparency = 0
+
+	local grad = Instance.new("UIGradient")
+	grad.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.new(0, 0, 0)),
+		ColorSequenceKeypoint.new(1, ACCENT)
+	})
+	grad.Rotation = 0
+	grad.Enabled  = false
+	grad.Parent   = row
 
 	local lbl = Instance.new("TextLabel")
 	lbl.BackgroundTransparency = 1
 	lbl.BorderSizePixel        = 0
 	lbl.Font                   = FG
 	lbl.Text                   = label
-	lbl.TextColor3             = C.TxtOff
+	lbl.TextColor3             = Color3.new(1, 1, 1)
 	lbl.TextSize               = 14
 	lbl.TextScaled             = false
-	lbl.TextXAlignment         = Enum.TextXAlignment.Center
+	lbl.TextXAlignment         = Enum.TextXAlignment.Left
 	lbl.TextYAlignment         = Enum.TextYAlignment.Center
 	lbl.Size                   = UDim2.new(1, 0, 1, 0)
 	lbl.Position               = UDim2.fromOffset(0, 0)
 	lbl.Parent                 = row
 
+	local pad = Instance.new("UIPadding")
+	pad.PaddingLeft = UDim.new(0, 8)
+	pad.Parent = lbl
+
 	local bar = Instance.new("Frame")
 	bar.Name                   = "AccentBar"
 	bar.BorderSizePixel        = 0
-	bar.BackgroundColor3       = Color3.fromRGB(90, 90, 90)
+	bar.BackgroundColor3       = Color3.fromRGB(110, 110, 110)
 	bar.Size                   = UDim2.new(0, 2, 1, 0)
-	bar.Position               = UDim2.new(1, 0, 0, 0)
+	bar.Position               = UDim2.new(1, -1, 0, 0)
 	bar.AnchorPoint            = Vector2.new(1, 0)
 	bar.Visible                = true
 	bar.Parent                 = row
 
 	local function refresh()
 		if on then
-			row.BackgroundColor3 = Color3.fromRGB(195, 96, 122)
+			row.BackgroundColor3 = Color3.new(1, 1, 1) -- White so gradient shows accurate colors
+			grad.Enabled         = true
 			lbl.TextColor3       = ACCENT
 			bar.BackgroundColor3 = ACCENT
 		else
-			row.BackgroundColor3 = hov and C.RowHov or C.RowOff
-			lbl.TextColor3       = C.TxtOff
-			bar.BackgroundColor3 = Color3.fromRGB(90, 90, 90)
+			row.BackgroundColor3 = hov and Color3.fromRGB(15, 15, 15) or Color3.new(0, 0, 0)
+			grad.Enabled         = false
+			lbl.TextColor3       = Color3.new(1, 1, 1)
+			bar.BackgroundColor3 = Color3.fromRGB(110, 110, 110)
 		end
 	end
 
