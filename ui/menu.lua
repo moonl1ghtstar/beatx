@@ -498,14 +498,17 @@ function Menu:Open()
 			local screenY = (i == 4) and (vh - ((1080 * scaleY) + catHeight)) or (vh - (refY * scaleY))
 			local localX = screenX - slot.AbsolutePosition.X
 			local localY = screenY - slot.AbsolutePosition.Y
-			print(string.format('[BeatX][Anim][Open] %s i=%d viewport=(%.0f,%.0f) slotAbs=(%.0f,%.0f) ref=(%.0f,%.0f) screenStart=(%.0f,%.0f) localStart=(%.0f,%.0f) containerAbsBefore=(%.0f,%.0f)', colDef.Def.Name, i, vw, vh, slot.AbsolutePosition.X, slot.AbsolutePosition.Y, refX, refY, screenX, screenY, localX, localY, container.AbsolutePosition.X, container.AbsolutePosition.Y))
-			container.Position = UDim2.fromOffset(localX, localY)
-			print(string.format('[BeatX][Anim][Open] %s containerAbsAfter=(%.0f,%.0f) position=%s', colDef.Def.Name, container.AbsolutePosition.X, container.AbsolutePosition.Y, tostring(container.Position)))
-			container.Visible = true
-			local delay = (i - 1) * 0.035
-			local tw = TweenService:Create(container, TweenInfo.new(0.3, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out, 0, false, delay), { Position = UDim2.new(0, 0, 0, 0) })
-			table.insert(self._tweens, tw)
-			tw:Play()
+			if i == 1 then
+				print(string.format('[BeatX][Anim][Open] %s i=%d viewport=(%.0f,%.0f) slotAbs=(%.0f,%.0f) ref=(%.0f,%.0f) screenStart=(%.0f,%.0f) localStart=(%.0f,%.0f) containerAbsBefore=(%.0f,%.0f)', colDef.Def.Name, i, vw, vh, slot.AbsolutePosition.X, slot.AbsolutePosition.Y, refX, refY, screenX, screenY, localX, localY, container.AbsolutePosition.X, container.AbsolutePosition.Y))
+				container.Position = UDim2.fromOffset(localX, localY)
+				container.Visible = true
+				local tw = TweenService:Create(container, TweenInfo.new(0.3, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out), { Position = UDim2.new(0, 0, 0, 0) })
+				table.insert(self._tweens, tw)
+				tw:Play()
+			else
+				container.Position = UDim2.fromOffset(0, 0)
+				container.Visible = true
+			end
 		end
 	end)
 end
@@ -527,12 +530,16 @@ function Menu:Close()
 		local screenY = (i == 4) and (vh - ((1080 * scaleY) + catHeight)) or (vh - (refY * scaleY))
 		local localX = screenX - slot.AbsolutePosition.X
 		local localY = screenY - slot.AbsolutePosition.Y
-		print(string.format('[BeatX][Anim][Close] %s i=%d viewport=(%.0f,%.0f) slotAbs=(%.0f,%.0f) ref=(%.0f,%.0f) screenExit=(%.0f,%.0f) localExit=(%.0f,%.0f) containerAbs=(%.0f,%.0f)', colDef.Def.Name, i, vw, vh, slot.AbsolutePosition.X, slot.AbsolutePosition.Y, refX, refY, screenX, screenY, localX, localY, container.AbsolutePosition.X, container.AbsolutePosition.Y))
-		local delay, duration = (i - 1) * 0.035, 0.23
-		maxDuration = math.max(maxDuration, duration + delay)
-		local tw = TweenService:Create(container, TweenInfo.new(duration, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out, 0, false, delay), { Position = UDim2.fromOffset(localX, localY) })
-		table.insert(self._tweens, tw)
-		tw:Play()
+		if i == 1 then
+			print(string.format('[BeatX][Anim][Close] %s i=%d viewport=(%.0f,%.0f) slotAbs=(%.0f,%.0f) ref=(%.0f,%.0f) screenExit=(%.0f,%.0f) localExit=(%.0f,%.0f) containerAbs=(%.0f,%.0f)', colDef.Def.Name, i, vw, vh, slot.AbsolutePosition.X, slot.AbsolutePosition.Y, refX, refY, screenX, screenY, localX, localY, container.AbsolutePosition.X, container.AbsolutePosition.Y))
+			local duration = 0.23
+			maxDuration = duration
+			local tw = TweenService:Create(container, TweenInfo.new(duration, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out), { Position = UDim2.fromOffset(localX, localY) })
+			table.insert(self._tweens, tw)
+			tw:Play()
+		else
+			container.Position = UDim2.fromOffset(0, 0)
+		end
 	end
 	task.delay(maxDuration, function()
 		if self.Destroyed or self.Visible then return end
