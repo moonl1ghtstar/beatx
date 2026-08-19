@@ -368,6 +368,17 @@ function Menu.new(BeatX)
 	gui.Enabled         = false
 	gui.Parent          = parent
 
+	local blocker = Instance.new("TextButton")
+	blocker.Name                   = "InputBlocker"
+	blocker.Size                   = UDim2.fromScale(1, 1)
+	blocker.BackgroundTransparency = 1
+	blocker.Text                   = ""
+	blocker.AutoButtonColor        = false
+	blocker.Active                 = true
+	blocker.Visible                = false
+	blocker.ZIndex                 = 0
+	blocker.Parent                 = gui
+
 	local totalW = #CATS * COL_W + (#CATS - 1) * COL_GAP
 
 	-- CanvasGroup: used only for GroupTransparency fade.
@@ -384,7 +395,12 @@ function Menu.new(BeatX)
 	canvas.BackgroundTransparency = 1    -- ← KEY: no canvas dark bg rectangle
 	canvas.GroupTransparency     = 1
 	canvas.BorderSizePixel       = 0
+	canvas.ZIndex                = 1
 	canvas.Parent                = gui
+
+	local uiScale = Instance.new("UIScale")
+	uiScale.Scale = 1
+	uiScale.Parent = canvas
 
 	-- Debug: show canvas bg to confirm its bounds
 	if DEBUG_UI then
@@ -458,6 +474,8 @@ function Menu.new(BeatX)
 	local menu = setmetatable({}, Menu)
 	menu.Gui       = gui
 	menu.Canvas    = canvas
+	menu.Scale     = uiScale
+	menu.Blocker   = blocker
 	menu.Columns   = columns
 	menu.DragConns = { dEnd, dMove }
 	menu.Visible   = false
@@ -475,13 +493,21 @@ function Menu:Open()
 	self:_stopAnims()
 	self.Visible                  = true
 	self.Gui.Enabled              = true
+	self.Blocker.Visible          = true
 	self.Canvas.GroupTransparency = 1
+	self.Scale.Scale              = 0.97
 	self._ft = TweenService:Create(
 		self.Canvas,
-		TweenInfo.new(0.20, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+		TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
 		{ GroupTransparency = 0 }
 	)
+	self._st = TweenService:Create(
+		self.Scale,
+		TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+		{ Scale = 1 }
+	)
 	self._ft:Play()
+	self._st:Play()
 end
 
 function Menu:Close()
@@ -490,12 +516,19 @@ function Menu:Close()
 	self.Visible = false
 	self._ft = TweenService:Create(
 		self.Canvas,
-		TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+		TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
 		{ GroupTransparency = 1 }
 	)
+	self._st = TweenService:Create(
+		self.Scale,
+		TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+		{ Scale = 0.97 }
+	)
 	self._ft:Play()
-	task.delay(0.18, function()
+	self._st:Play()
+	task.delay(0.15, function()
 		if self.Destroyed or self.Visible then return end
+		self.Blocker.Visible = false
 		self.Gui.Enabled = false
 	end)
 end
@@ -506,6 +539,7 @@ end
 
 function Menu:_stopAnims()
 	if self._ft then self._ft:Cancel() end
+	if self._st then self._st:Cancel() end
 end
 Menu.StopAnims = Menu._stopAnims
 
