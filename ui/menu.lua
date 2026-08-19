@@ -507,7 +507,10 @@ function Menu:Open()
 	if self.Visible then return end
 	self:_stopAnims()
 	self.Visible = true
-	for _, colDef in ipairs(self.Columns) do colDef.Container.Visible = false end
+	for _, colDef in ipairs(self.Columns) do
+		colDef.Container.Position = UDim2.fromOffset(0, 0)
+		colDef.Container.Visible = false
+	end
 	self.Gui.Enabled = true
 	self.Blocker.Visible = true
 	task.defer(function()
