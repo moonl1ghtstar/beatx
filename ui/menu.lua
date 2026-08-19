@@ -381,26 +381,17 @@ function Menu.new(BeatX)
 
 	local totalW = #CATS * COL_W + (#CATS - 1) * COL_GAP
 
-	-- CanvasGroup: used only for GroupTransparency fade.
-	-- BackgroundTransparency = 1 — canvas renders NO dark background rectangle.
-	-- Without this, canvas bg (C.Bg = nearly black) always fills the full
-	-- AutomaticSize height behind all columns, causing a dark band below
-	-- any collapsed column that is shorter than the tallest column.
-	local canvas = Instance.new("CanvasGroup")
+	-- Canvas: changed to Frame so children are not clipped during entrance animation
+	local canvas = Instance.new("Frame")
 	canvas.Name                  = "Canvas"
 	canvas.AnchorPoint           = Vector2.new(0.5, 0.5)
 	canvas.Position              = UDim2.fromScale(0.5, 0.5)
 	canvas.Size                  = UDim2.new(0, totalW, 0, 0)
 	canvas.AutomaticSize         = Enum.AutomaticSize.Y
-	canvas.BackgroundTransparency = 1    -- ← KEY: no canvas dark bg rectangle
-	canvas.GroupTransparency     = 1
+	canvas.BackgroundTransparency = 1
 	canvas.BorderSizePixel       = 0
 	canvas.ZIndex                = 1
 	canvas.Parent                = gui
-
-	local uiScale = Instance.new("UIScale")
-	uiScale.Scale = 1
-	uiScale.Parent = canvas
 
 	-- Debug: show canvas bg to confirm its bounds
 	if DEBUG_UI then
@@ -409,6 +400,7 @@ function Menu.new(BeatX)
 	end
 
 	local hLayout = Instance.new("UIListLayout")
+	hLayout.Name                = "HLayout"
 	hLayout.FillDirection       = Enum.FillDirection.Horizontal
 	hLayout.Padding             = UDim.new(0, COL_GAP)
 	hLayout.SortOrder           = Enum.SortOrder.LayoutOrder
@@ -472,15 +464,17 @@ function Menu.new(BeatX)
 	end)
 
 	local menu = setmetatable({}, Menu)
-	menu.Gui       = gui
-	menu.Canvas    = canvas
-	menu.Scale     = uiScale
-	menu.Blocker   = blocker
-	menu.Columns   = columns
-	menu.DragConns = { dEnd, dMove }
-	menu.Visible   = false
-	menu.Destroyed = false
-	menu.OnUtility = {}
+	menu.Gui          = gui
+	menu.Canvas       = canvas
+	menu.HLayout      = hLayout
+	menu.Blocker      = blocker
+	menu.Columns      = columns
+	menu.DragConns    = { dEnd, dMove }
+	menu.Visible      = false
+	menu.Destroyed    = false
+	menu.OnUtility    = {}
+	menu.ColsFinalPos = {}
+	menu._tweens      = {}
 
 	_instance = menu
 	return menu
@@ -494,42 +488,93 @@ function Menu:Open()
 	self.Visible                  = true
 	self.Gui.Enabled              = true
 	self.Blocker.Visible          = true
-	self.Canvas.GroupTransparency = 1
-	self.Scale.Scale              = 0.97
-	self._ft = TweenService:Create(
-		self.Canvas,
-		TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-		{ GroupTransparency = 0 }
-	)
-	self._st = TweenService:Create(
-		self.Scale,
-		TweenInfo.new(0.18, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-		{ Scale = 1 }
-	)
-	self._ft:Play()
-	self._st:Play()
+
+	-- Temporarily handle layout positioning
+	if self.HLayout.Parent then
+		for i, col in ipairs(self.Columns) do
+			self.ColsFinalPos[i] = UDim2.fromOffset((i-1)*(COL_W+COL_GAP), 0)
+		end
+		self.HLayout.Parent = nil
+	end
+
+	self.Canvas.AutomaticSize = Enum.AutomaticSize.None
+
+	local DIRS = {
+		UDim2.new(0, 0, 0, -1500), -- BeatX
+		UDim2.new(0, 1500, 0, 0),  -- Creator
+		UDim2.new(0, 0, 0, 1500),  -- Cosmetic
+		UDim2.new(0, -1500, 0, 0), -- Level
+		UDim2.new(0, 0, 0, -1500), -- Status
+		UDim2.new(0, 1500, 0, 0),  -- Display
+		UDim2.new(0, 0, 0, 1500),  -- Utility
+		UDim2.new(0, -1500, 0, 0), -- Speedhack
+	}
+
+	for i, col in ipairs(self.Columns) do
+		local finalPos = self.ColsFinalPos[i] or UDim2.fromOffset((i-1)*(COL_W+COL_GAP), 0)
+		local startPos = finalPos + DIRS[i]
+		col.Position = startPos
+
+		local delay = (i-1) * 0.035
+		local tw = TweenService:Create(
+			col,
+			TweenInfo.new(0.3, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out, 0, false, delay),
+			{ Position = finalPos }
+		)
+		table.insert(self._tweens, tw)
+		tw:Play()
+	end
+
+	task.delay(0.3 + 8*0.035, function()
+		if not self.Visible or self.Destroyed then return end
+		self.HLayout.Parent = self.Canvas
+		self.Canvas.AutomaticSize = Enum.AutomaticSize.Y
+	end)
 end
 
 function Menu:Close()
 	if not self.Visible then return end
 	self:_stopAnims()
 	self.Visible = false
-	self._ft = TweenService:Create(
-		self.Canvas,
-		TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-		{ GroupTransparency = 1 }
-	)
-	self._st = TweenService:Create(
-		self.Scale,
-		TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-		{ Scale = 0.97 }
-	)
-	self._ft:Play()
-	self._st:Play()
-	task.delay(0.15, function()
+
+	self.Canvas.AutomaticSize = Enum.AutomaticSize.None
+	self.HLayout.Parent = nil
+
+	local DIRS = {
+		UDim2.new(0, 0, 0, -1500), -- BeatX
+		UDim2.new(0, 1500, 0, 0),  -- Creator
+		UDim2.new(0, 0, 0, 1500),  -- Cosmetic
+		UDim2.new(0, -1500, 0, 0), -- Level
+		UDim2.new(0, 0, 0, -1500), -- Status
+		UDim2.new(0, 1500, 0, 0),  -- Display
+		UDim2.new(0, 0, 0, 1500),  -- Utility
+		UDim2.new(0, -1500, 0, 0), -- Speedhack
+	}
+
+	local maxDuration = 0
+	for i, col in ipairs(self.Columns) do
+		local finalPos = self.ColsFinalPos[i] or UDim2.fromOffset((i-1)*(COL_W+COL_GAP), 0)
+		local endPos = finalPos + DIRS[i]
+
+		local delay = (i-1) * 0.035
+		local duration = 0.23
+		maxDuration = math.max(maxDuration, duration + delay)
+
+		local tw = TweenService:Create(
+			col,
+			TweenInfo.new(duration, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out, 0, false, delay),
+			{ Position = endPos }
+		)
+		table.insert(self._tweens, tw)
+		tw:Play()
+	end
+
+	task.delay(maxDuration, function()
 		if self.Destroyed or self.Visible then return end
 		self.Blocker.Visible = false
 		self.Gui.Enabled = false
+		self.HLayout.Parent = self.Canvas
+		self.Canvas.AutomaticSize = Enum.AutomaticSize.Y
 	end)
 end
 
@@ -538,8 +583,12 @@ function Menu:Toggle()
 end
 
 function Menu:_stopAnims()
-	if self._ft then self._ft:Cancel() end
-	if self._st then self._st:Cancel() end
+	if self._tweens then
+		for _, tw in ipairs(self._tweens) do
+			tw:Cancel()
+		end
+		self._tweens = {}
+	end
 end
 Menu.StopAnims = Menu._stopAnims
 
