@@ -374,8 +374,8 @@ function Menu.new(BeatX)
 
 	local canvas = Instance.new("Frame")
 	canvas.Name                  = "Canvas"
-	canvas.AnchorPoint           = Vector2.new(0.5, 0.5)
-	canvas.Position              = UDim2.fromScale(0.5, 0.5)
+	canvas.AnchorPoint           = Vector2.new(0.5, 0)
+	canvas.Position              = UDim2.fromScale(0.5, 0)
 	canvas.Size                  = UDim2.new(0, totalW, 0, 0)
 	canvas.AutomaticSize         = Enum.AutomaticSize.XY
 	canvas.BackgroundTransparency = 1
@@ -457,7 +457,7 @@ function Menu.new(BeatX)
 		local ss = gui.AbsoluteSize
 		local x  = math.clamp(m.X + dragOffset.X, 0, math.max(0, ss.X - cs.X))
 		local y  = math.clamp(m.Y + dragOffset.Y, 0, math.max(0, ss.Y - cs.Y))
-		canvas.Position = UDim2.fromOffset(x + cs.X * 0.5, y + cs.Y * 0.5)
+		canvas.Position = UDim2.fromOffset(x + cs.X * 0.5, y)
 	end)
 
 	local menu = setmetatable({}, Menu)
@@ -562,7 +562,7 @@ end
 Menu.StopAnims = Menu._stopAnims
 
 function Menu:Center()
-	self.Canvas.Position = UDim2.fromScale(0.5, 0.5)
+	self.Canvas.Position = UDim2.fromScale(0.5, 0)
 end
 
 function Menu:Destroy()
