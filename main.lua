@@ -1,4 +1,17 @@
--- Main loads WindUI, core modules, then feature modules from one base URL.
+--[[
+
+ /$$$$$$$                        /$$     /$$   /$$
+| $$__  $$                      | $$    | $$  / $$
+| $$  \ $$  /$$$$$$   /$$$$$$  /$$$$$$  |  $$/ $$/
+| $$$$$$$  /$$__  $$ |____  $$|_  $$_/   \  $$$$/ 
+| $$__  $$ | $$$$$$$$  /$$$$$$$  | $$      >$$  $$ 
+| $$  \ $$| $$_____/ /$$__  $$  | $$ /$$ /$$/\  $$
+| $$$$$$$/|  $$$$$$$|  $$$$$$$  |  $$$$/| $$  \ $$
+|_______/  \_______/ \_______/   \___/  |__/  |__/
+
+ BeatX - Main
+
+]]--
 
 local BEATX_GAME_ID = 5385674359
 
@@ -159,7 +172,7 @@ function Main.Start()
 			if self.Menu then
 				return self.Menu
 			end
-			local MenuModule = loadModule("ui/Menu.lua")
+			local MenuModule = loadModule("ui/menu.lua")
 			local menu = MenuModule.new(BeatX)
 			BeatXMenu = menu
 			self.Menu = menu

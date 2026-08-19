@@ -221,7 +221,7 @@ local function buildColumn(def, canvas)
 	hdr.Size             = UDim2.new(1, 0, 0, HDR_H)
 	hdr.Position         = UDim2.fromOffset(0, 0)
 	hdr.Parent           = wrap
-	addGrad(hdr, C.HdrA, C.HdrB)
+	-- No gradient: solid Color3.fromRGB(232, 56, 102) throughout
 
 	if DEBUG_UI then
 		hdr.BackgroundColor3 = DBG.Header   -- magenta in debug
