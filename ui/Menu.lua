@@ -6,10 +6,48 @@ Menu.__index = Menu
 local TweenService     = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
--- ─── Palette ──────────────────────────────────────────────────────────────────
--- Accent is exactly RGB(232, 56, 102) throughout.
+-- ── Debug ──────────────────────────────────────────────────────────────────────
+-- Set true to print collapse hierarchy + apply distinct debug colors per layer.
+local DEBUG_UI = true
+
+local function dbgObj(path, obj)
+	if not DEBUG_UI then return end
+	local r,g,b = obj.BackgroundColor3.R*255, obj.BackgroundColor3.G*255, obj.BackgroundColor3.B*255
+	local absSz = pcall(function() return obj.AbsoluteSize end) and obj.AbsoluteSize or Vector2.zero
+	local absPos = pcall(function() return obj.AbsolutePosition end) and obj.AbsolutePosition or Vector2.zero
+	local autoSz = pcall(function() return tostring(obj.AutomaticSize) end) and tostring(obj.AutomaticSize) or "N/A"
+	local clips  = pcall(function() return tostring(obj.ClipsDescendants) end) and tostring(obj.ClipsDescendants) or "N/A"
+	local vis    = pcall(function() return tostring(obj.Visible) end) and tostring(obj.Visible) or "N/A"
+	local bgT    = pcall(function() return obj.BackgroundTransparency end) and obj.BackgroundTransparency or -1
+	print(string.format(
+		"[BeatX DEBUG][BG] PATH=%s | Class=%s | Visible=%s | BgTransp=%.2f | BgColor=RGB(%d,%d,%d) | Size=%s | AbsSize=(%.0f,%.0f) | AbsPos=(%.0f,%.0f) | AutoSize=%s | Clips=%s",
+		path, obj.ClassName, vis, bgT, r, g, b,
+		tostring(obj.Size), absSz.X, absSz.Y, absPos.X, absPos.Y, autoSz, clips
+	))
+	-- Flag objects rendering a visible dark background
+	if bgT < 1 and absSz.Y > 0 and (r < 50 and g < 50 and b < 60) then
+		print(string.format(
+			"[BeatX DEBUG][SIZE] *** DARK BG RENDERED: %s | AbsHeight=%.0f | BgRGB=(%d,%d,%d) ***",
+			path, absSz.Y, r, g, b
+		))
+	end
+end
+
+local function dbgCollapse(catName, canvas, wrap, hdr, content)
+	if not DEBUG_UI then return end
+	print("[BeatX DEBUG][COLLAPSE] === Category: " .. catName .. " collapsed ===")
+	-- Wait one frame so AbsoluteSize reflects the new layout
+	task.defer(function()
+		dbgObj("Canvas",              canvas)
+		dbgObj("Canvas/Wrap_"..catName, wrap)
+		dbgObj("Canvas/Wrap_"..catName.."/Header",  hdr)
+		dbgObj("Canvas/Wrap_"..catName.."/Content", content)
+	end)
+end
+
+-- ── Palette ────────────────────────────────────────────────────────────────────
 local ACCENT  = Color3.fromRGB(232, 56, 102)
-local ACCENTD = Color3.fromRGB(185, 40,  80)   -- darker shade for gradient end
+local ACCENTD = Color3.fromRGB(185, 40,  80)
 
 local C = {
 	Bg       = Color3.fromRGB(18,  17,  22),
@@ -25,6 +63,14 @@ local C = {
 	TxtOff   = Color3.fromRGB(210, 205, 220),
 	ScrollT  = ACCENT,
 	Sep      = Color3.fromRGB(34,  32,  41),
+}
+
+-- Debug layer colors — distinct per object type, only when DEBUG_UI = true
+local DBG = {
+	Canvas  = Color3.fromRGB(0,   0,   200),  -- blue  (canvas bg)
+	Wrap    = Color3.fromRGB(0,   200, 0),    -- green (wrap bg)
+	Content = Color3.fromRGB(200, 200, 0),    -- yellow (content bg)
+	Header  = Color3.fromRGB(200, 0,   200),  -- magenta (header bg)
 }
 
 local FB = Enum.Font.GothamBold
@@ -51,7 +97,7 @@ local CATS = {
 
 local _instance = nil
 
--- ─── Helpers ──────────────────────────────────────────────────────────────────
+-- ── Helpers ────────────────────────────────────────────────────────────────────
 local function getGuiParent()
 	local ok, cg = pcall(function() return game:GetService("CoreGui") end)
 	if ok and cg then return cg end
@@ -73,7 +119,7 @@ local function contentHeight(itemCount)
 	return SEP_H + itemCount * ROW_H
 end
 
--- ─── Row ──────────────────────────────────────────────────────────────────────
+-- ── Row ────────────────────────────────────────────────────────────────────────
 local function buildRow(parent, label)
 	local on  = false
 	local hov = false
@@ -118,41 +164,56 @@ local function buildRow(parent, label)
 	return row
 end
 
--- ─── Column ───────────────────────────────────────────────────────────────────
+-- ── Column ─────────────────────────────────────────────────────────────────────
 --
--- Layout explanation (the only correct fix for leftover bg):
+-- DEFINITIVE FIX — analysis of every rendering layer:
 --
---   canvas (CanvasGroup, AutomaticSize=Y, bg=C.Bg, horizontal UIListLayout)
---     └─ wrap  (Frame, fixed width=COL_W, height ALWAYS = expandedTotalH)
---              bg = C.Bg  ← matches canvas bg; covers canvas bg below content
---              ClipsDescendants = false (wrap is transparent/Bg-colored filler)
---          ├─ hdr     (Frame, 0..HDR_H)
---          └─ content (Frame, HDR_H..HDR_H+contentH, ClipsDescendants=true)
---                      ↑ shrinks to height=0 on collapse, bg disappears with it
+--  Previous attempt (wrap stays fixed height + wrap.Bg = C.Bg):
+--    wrap bg = C.Bg = RGB(18,17,22) — that IS dark / nearly black.
+--    Below the collapsed header (24px), the wrap bg fills (expandedTotalH - HDR_H)
+--    = ~23px with a dark rectangle. THAT is the black background the user sees.
+--    Making wrap.Bg match canvas.Bg does not fix it — C.Bg is dark regardless.
 --
--- Why wrap height stays fixed:
---   canvas AutomaticSize=Y = max child height = expandedTotalH (from tallest column).
---   If wrap shrank on collapse, canvas bg (C.Bg, dark) would show in the vacated
---   space. By keeping wrap full-height with bg=C.Bg, the wrap occludes that canvas
---   bg with an identical color — visually the area is always C.Bg, never ColBg.
---   The only colored area is hdr (accent) + content (ColBg). When content height=0
---   there is zero ColBg visible. Wrap bg = C.Bg = same as canvas = invisible seam.
+--  Root cause objects responsible for the dark area (in order):
+--    1. canvas (CanvasGroup) — BackgroundColor3=C.Bg, always full height via AutomaticSize=Y
+--       → renders dark behind all columns including the gap below a collapsed wrap
+--    2. wrap (Frame) — BackgroundColor3=C.Bg, fixed full height
+--       → renders dark ABOVE the canvas bg; same dark color; doubly dark
 --
-local function buildColumn(def)
+--  Correct fix:
+--    • canvas.BackgroundTransparency = 1  — canvas provides GroupTransparency fade
+--      but does NOT need to render its own background rectangle.
+--    • wrap.BackgroundTransparency = 1  — wrapper is structural only, no bg.
+--    • wrap DOES shrink to HDR_H on collapse — canvas AutomaticSize=Y then
+--      equals the tallest remaining column.
+--    • content shrinks to 0 on collapse — ColBg disappears.
+--    • Result: collapsed column = accent header only. Nothing below it renders.
+--      The area behind/below the collapsed column is fully transparent (shows game).
+--    • Each column's content (ColBg) and header (accent) provide all visible color.
+--      No outer "menu background" rectangle — each column is self-contained.
+--
+local function buildColumn(def, canvas)
 	local expandedContentH = contentHeight(#def.Items)
 	local expandedTotalH   = HDR_H + expandedContentH
 
-	-- wrap: fixed width, ALWAYS full height, bg=C.Bg to occlude canvas bg below content
+	-- wrap: structural only.
+	-- BackgroundTransparency=1 — wrap renders NO background.
+	-- Height is controlled manually: expandedTotalH when open, HDR_H when collapsed.
+	-- canvas AutomaticSize=Y will track the tallest wrap automatically.
 	local wrap = Instance.new("Frame")
 	wrap.Name                   = "Wrap_" .. def.Name
-	wrap.BackgroundColor3       = C.Bg       -- matches canvas bg — no seam visible
-	wrap.BackgroundTransparency = 0
+	wrap.BackgroundTransparency = 1      -- ← TRANSPARENT: zero dark bg from wrap
 	wrap.BorderSizePixel        = 0
 	wrap.Size                   = UDim2.new(0, COL_W, 0, expandedTotalH)
-	-- Height is FIXED, never shrinks. Only content shrinks. This prevents canvas
-	-- bg from ever being exposed behind/below this column.
+	wrap.ClipsDescendants       = true   -- content can't bleed outside wrap bounds
 
-	-- ── Header ──────────────────────────────────────────────────────────────
+	-- Debug: give wrap a visible color to confirm it's the right object
+	if DEBUG_UI then
+		wrap.BackgroundColor3       = DBG.Wrap
+		wrap.BackgroundTransparency = 0.6  -- semi-transparent green in debug mode
+	end
+
+	-- ── Header ────────────────────────────────────────────────────────────────
 	local hdr = Instance.new("Frame")
 	hdr.Name             = "Header"
 	hdr.BackgroundColor3 = C.HdrA
@@ -162,7 +223,11 @@ local function buildColumn(def)
 	hdr.Parent           = wrap
 	addGrad(hdr, C.HdrA, C.HdrB)
 
-	-- +/- button: LEFT side of header, fixed 20px wide
+	if DEBUG_UI then
+		hdr.BackgroundColor3 = DBG.Header   -- magenta in debug
+	end
+
+	-- +/- button: LEFT side, fixed 20px
 	local colBtn = Instance.new("TextButton")
 	colBtn.AutoButtonColor        = false
 	colBtn.BackgroundTransparency = 1
@@ -173,17 +238,13 @@ local function buildColumn(def)
 	colBtn.TextSize               = 14
 	colBtn.TextScaled             = false
 	colBtn.Size                   = UDim2.fromOffset(20, HDR_H)
-	colBtn.Position               = UDim2.fromOffset(0, 0)   -- LEFT edge
+	colBtn.Position               = UDim2.fromOffset(0, 0)  -- LEFT edge
 	colBtn.TextXAlignment         = Enum.TextXAlignment.Center
 	colBtn.TextYAlignment         = Enum.TextYAlignment.Center
 	colBtn.ZIndex                 = 3
 	colBtn.Parent                 = hdr
 
-	-- Title label: spans FULL header width → TextXAlignment.Center = true center
-	-- The +/- button is a sibling rendered above (ZIndex 3 vs label ZIndex 2).
-	-- Title visually sits behind the button text, but the button is only 20px wide
-	-- so the title text is only obscured at the left edge — title remains legible
-	-- and mathematically centered across the full 140px header.
+	-- Title: full header width → Center alignment = true mathematical center
 	local hdrLbl = Instance.new("TextLabel")
 	hdrLbl.BackgroundTransparency = 1
 	hdrLbl.BorderSizePixel        = 0
@@ -194,14 +255,13 @@ local function buildColumn(def)
 	hdrLbl.TextScaled             = false
 	hdrLbl.TextXAlignment         = Enum.TextXAlignment.Center
 	hdrLbl.TextYAlignment         = Enum.TextYAlignment.Center
-	hdrLbl.Position               = UDim2.fromOffset(0, 0)   -- full width, from x=0
-	hdrLbl.Size                   = UDim2.new(1, 0, 1, 0)    -- 100% header width
+	hdrLbl.Position               = UDim2.fromOffset(0, 0)
+	hdrLbl.Size                   = UDim2.new(1, 0, 1, 0)
 	hdrLbl.ZIndex                 = 2
 	hdrLbl.Parent                 = hdr
 
-	-- ── Content ─────────────────────────────────────────────────────────────
-	-- ClipsDescendants=true: when height=0 nothing inside renders.
-	-- BackgroundColor3=ColBg: visible only when height > 0.
+	-- ── Content ───────────────────────────────────────────────────────────────
+	-- ClipsDescendants=true: height=0 → nothing renders, bg invisible.
 	local content = Instance.new("Frame")
 	content.Name              = "Content"
 	content.BackgroundColor3  = C.ColBg
@@ -211,13 +271,16 @@ local function buildColumn(def)
 	content.Size              = UDim2.new(1, 0, 0, expandedContentH)
 	content.Parent            = wrap
 
+	if DEBUG_UI then
+		content.BackgroundColor3 = DBG.Content   -- yellow in debug
+	end
+
 	local cList = Instance.new("UIListLayout")
 	cList.FillDirection = Enum.FillDirection.Vertical
 	cList.Padding       = UDim.new(0, 0)
 	cList.SortOrder     = Enum.SortOrder.LayoutOrder
 	cList.Parent        = content
 
-	-- Separator
 	local sep = Instance.new("Frame")
 	sep.BackgroundColor3 = C.Sep
 	sep.BorderSizePixel  = 0
@@ -230,26 +293,30 @@ local function buildColumn(def)
 		r.LayoutOrder = i + 1
 	end
 
-	-- ── Collapse logic ───────────────────────────────────────────────────────
-	-- wrap stays at expandedTotalH always.
-	-- Only content.Size changes: 0 when collapsed, expandedContentH when expanded.
-	-- Collapsed state: content height=0, ClipsDescendants hides children, bg invisible.
-	-- No residual dark area: wrap.Bg = C.Bg covers the space with canvas-matching color.
+	-- ── Collapse logic ─────────────────────────────────────────────────────────
+	-- wrap shrinks to HDR_H: no remaining wrap area exists below header.
+	-- content shrinks to 0: its ColBg bg disappears entirely.
+	-- canvas.AutomaticSize=Y updates to tallest remaining wrap.
+	-- canvas.BackgroundTransparency=1: canvas renders no bg → nothing dark behind wrap.
 	local collapsed = false
 	colBtn.MouseButton1Click:Connect(function()
 		collapsed = not collapsed
 		colBtn.Text = collapsed and "+" or "-"
 		if collapsed then
 			content.Size = UDim2.new(1, 0, 0, 0)
+			wrap.Size    = UDim2.new(0, COL_W, 0, HDR_H)
 		else
 			content.Size = UDim2.new(1, 0, 0, expandedContentH)
+			wrap.Size    = UDim2.new(0, COL_W, 0, expandedTotalH)
 		end
+		-- Debug: print full hierarchy state after layout settles
+		dbgCollapse(def.Name, canvas, wrap, hdr, content)
 	end)
 
 	return wrap
 end
 
--- ─── Menu.new ─────────────────────────────────────────────────────────────────
+-- ── Menu.new ───────────────────────────────────────────────────────────────────
 function Menu.new(BeatX)
 	if _instance then return _instance end
 
@@ -261,7 +328,6 @@ function Menu.new(BeatX)
 		if old then old:Destroy() end
 	end
 
-	-- ScreenGui
 	local gui = Instance.new("ScreenGui")
 	gui.Name            = "BeatXMenu"
 	gui.ResetOnSpawn    = false
@@ -271,23 +337,29 @@ function Menu.new(BeatX)
 	gui.Enabled         = false
 	gui.Parent          = parent
 
-	-- Canvas dimensions
 	local totalW = #CATS * COL_W + (#CATS - 1) * COL_GAP
 
-	-- CanvasGroup: horizontal container for all columns.
-	-- AutomaticSize=Y: height = tallest column = expandedTotalH (all same here).
-	-- BackgroundColor3 = C.Bg: provides the outer menu background.
-	-- No UIScale, no UICorner, no UIStroke.
+	-- CanvasGroup: used only for GroupTransparency fade.
+	-- BackgroundTransparency = 1 — canvas renders NO dark background rectangle.
+	-- Without this, canvas bg (C.Bg = nearly black) always fills the full
+	-- AutomaticSize height behind all columns, causing a dark band below
+	-- any collapsed column that is shorter than the tallest column.
 	local canvas = Instance.new("CanvasGroup")
-	canvas.Name              = "Canvas"
-	canvas.AnchorPoint       = Vector2.new(0.5, 0.5)
-	canvas.Position          = UDim2.fromScale(0.5, 0.5)
-	canvas.Size              = UDim2.new(0, totalW, 0, 0)
-	canvas.AutomaticSize     = Enum.AutomaticSize.Y
-	canvas.BackgroundColor3  = C.Bg
-	canvas.GroupTransparency = 1
-	canvas.BorderSizePixel   = 0
-	canvas.Parent            = gui
+	canvas.Name                  = "Canvas"
+	canvas.AnchorPoint           = Vector2.new(0.5, 0.5)
+	canvas.Position              = UDim2.fromScale(0.5, 0.5)
+	canvas.Size                  = UDim2.new(0, totalW, 0, 0)
+	canvas.AutomaticSize         = Enum.AutomaticSize.Y
+	canvas.BackgroundTransparency = 1    -- ← KEY: no canvas dark bg rectangle
+	canvas.GroupTransparency     = 1
+	canvas.BorderSizePixel       = 0
+	canvas.Parent                = gui
+
+	-- Debug: show canvas bg to confirm its bounds
+	if DEBUG_UI then
+		canvas.BackgroundColor3       = DBG.Canvas
+		canvas.BackgroundTransparency = 0.7  -- semi-transparent blue in debug
+	end
 
 	local hLayout = Instance.new("UIListLayout")
 	hLayout.FillDirection       = Enum.FillDirection.Horizontal
@@ -299,13 +371,29 @@ function Menu.new(BeatX)
 
 	local columns = {}
 	for i, def in ipairs(CATS) do
-		local col       = buildColumn(def)
+		local col       = buildColumn(def, canvas)
 		col.LayoutOrder = i
 		col.Parent      = canvas
 		columns[i]      = col
 	end
 
-	-- ── Drag via first header ──────────────────────────────────────────────
+	-- Debug: print initial state
+	if DEBUG_UI then
+		task.defer(function()
+			print("[BeatX DEBUG][COLLAPSE] === INITIAL STATE ===")
+			dbgObj("Canvas", canvas)
+			for i, col in ipairs(columns) do
+				local catName = CATS[i].Name
+				dbgObj("Canvas/Wrap_"..catName, col)
+				local hdr = col:FindFirstChild("Header")
+				local cnt = col:FindFirstChild("Content")
+				if hdr then dbgObj("Canvas/Wrap_"..catName.."/Header", hdr) end
+				if cnt then dbgObj("Canvas/Wrap_"..catName.."/Content", cnt) end
+			end
+		end)
+	end
+
+	-- Drag via first header
 	local dragging   = false
 	local dragOffset = Vector2.zero
 	local firstHdr   = columns[1] and columns[1]:FindFirstChild("Header")
