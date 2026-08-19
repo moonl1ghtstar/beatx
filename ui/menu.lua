@@ -143,6 +143,9 @@ local function categoryStartScreenPosition(categoryName, categoryHeight, viewpor
 	if categoryName == "Level" then
 		screenY = viewportHeight - (1080 * scaleY) - categoryHeight
 	end
+
+	-- Temporary animation correction: move every entrance 540px downward.
+	screenY = screenY + 540
 	return Vector2.new(screenX, screenY)
 end
 
