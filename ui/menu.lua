@@ -118,38 +118,6 @@ end
 local function contentHeight(itemCount)
 	return SEP_H + itemCount * ROW_H
 end
-local function screenToParentOffset(guiObject, screenPosition)
-	local parent = guiObject.Parent
-	return screenPosition - parent.AbsolutePosition
-end
-
-local CATEGORY_START_REFERENCE = {
-	BeatX = { X = 1920, Y = 520 },
-	Creator = { X = 1920, Y = 560 },
-	Cosmetic = { X = 950, Y = 0 },
-	Level = { X = 1440, Y = 1080 },
-	Status = { X = 1920, Y = 800 },
-	Display = { X = 1920, Y = 850 },
-	Utility = { X = 620, Y = 0 },
-	Speedhack = { X = 930, Y = 0 },
-}
-
-local function categoryStartScreenPosition(categoryName, categoryHeight, viewportWidth, viewportHeight)
-	local reference = CATEGORY_START_REFERENCE[categoryName]
-	local scaleX = viewportWidth / 1920
-	local scaleY = viewportHeight / 1080
-	local screenX = reference.X * scaleX
-	local screenY = viewportHeight - (reference.Y * scaleY)
-	if categoryName == "Level" then
-		screenY = viewportHeight - (1080 * scaleY) - categoryHeight
-	end
-
-	-- Temporary animation correction: move every entrance 540px downward.
-	return Vector2.new(screenX, screenY)
-end
-
-
--- ── Row ────────────────────────────────────────────────────────────────────────
 local function buildRow(parent, label)
 	local on  = false
 	local hov = false
@@ -513,26 +481,27 @@ function Menu:Open()
 	if self.Visible then return end
 	self:_stopAnims()
 	self.Visible = true
-	for _, colDef in ipairs(self.Columns) do
-		colDef.Container.Position = UDim2.fromOffset(0, 0)
-		colDef.Container.Visible = false
-	end
+	for _, colDef in ipairs(self.Columns) do colDef.Container.Visible = false end
 	self.Gui.Enabled = true
 	self.Blocker.Visible = true
 	task.defer(function()
 		if not self.Visible or self.Destroyed then return end
 		for i, colDef in ipairs(self.Columns) do
 			local container = colDef.Container
-			local catHeight = colDef.Slot.Size.Y.Offset
+			local slot = colDef.Slot
+			local catHeight = slot.Size.Y.Offset
 			local vw, vh = self.Gui.AbsoluteSize.X, self.Gui.AbsoluteSize.Y
+			local scaleX, scaleY = vw / 1920, vh / 1080
+			local refX, refY
+			if i == 1 then refX, refY = 1920, 520 elseif i == 2 then refX, refY = 1920, 560 elseif i == 3 then refX, refY = 950, 0 elseif i == 4 then refX, refY = 1440, catHeight + 1080 elseif i == 5 then refX, refY = 1920, 800 elseif i == 6 then refX, refY = 1920, 850 elseif i == 7 then refX, refY = 620, 0 elseif i == 8 then refX, refY = 930, 0 end
+			local screenX = refX * scaleX
+			local screenY = (i == 4) and (vh - ((1080 * scaleY) + catHeight)) or (vh - (refY * scaleY))
+			local localX = screenX - slot.AbsolutePosition.X
+			local localY = screenY - slot.AbsolutePosition.Y
+			container.Position = UDim2.fromOffset(localX, localY)
 			container.Visible = true
-			local finalScreenPosition = container.AbsolutePosition
-			local finalPosition = screenToParentOffset(container, finalScreenPosition)
-			local startPosition = screenToParentOffset(container, categoryStartScreenPosition(colDef.Def.Name, catHeight, vw, vh))
-			startPosition = startPosition + Vector2.new(0, 540)
-			container.Position = UDim2.fromOffset(startPosition.X, startPosition.Y)
 			local delay = (i - 1) * 0.035
-			local tw = TweenService:Create(container, TweenInfo.new(0.3, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out, 0, false, delay), { Position = UDim2.fromOffset(finalPosition.X, finalPosition.Y) })
+			local tw = TweenService:Create(container, TweenInfo.new(0.3, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out, 0, false, delay), { Position = UDim2.new(0, 0, 0, 0) })
 			table.insert(self._tweens, tw)
 			tw:Play()
 		end
@@ -546,23 +515,28 @@ function Menu:Close()
 	local maxDuration = 0
 	for i, colDef in ipairs(self.Columns) do
 		local container = colDef.Container
-		local catHeight = colDef.Slot.Size.Y.Offset
+		local slot = colDef.Slot
+		local catHeight = slot.Size.Y.Offset
 		local vw, vh = self.Gui.AbsoluteSize.X, self.Gui.AbsoluteSize.Y
-		local startPosition = screenToParentOffset(container, categoryStartScreenPosition(colDef.Def.Name, catHeight, vw, vh))
-			startPosition = startPosition + Vector2.new(0, 540)
+		local scaleX, scaleY = vw / 1920, vh / 1080
+		local refX, refY
+		if i == 1 then refX, refY = 1920, 520 elseif i == 2 then refX, refY = 1920, 560 elseif i == 3 then refX, refY = 950, 0 elseif i == 4 then refX, refY = 1440, catHeight + 1080 elseif i == 5 then refX, refY = 1920, 800 elseif i == 6 then refX, refY = 1920, 850 elseif i == 7 then refX, refY = 620, 0 elseif i == 8 then refX, refY = 930, 0 end
+		local screenX = refX * scaleX
+		local screenY = (i == 4) and (vh - ((1080 * scaleY) + catHeight)) or (vh - (refY * scaleY))
+		local localX = screenX - slot.AbsolutePosition.X
+		local localY = screenY - slot.AbsolutePosition.Y
 		local delay, duration = (i - 1) * 0.035, 0.23
 		maxDuration = math.max(maxDuration, duration + delay)
-		local tw = TweenService:Create(container, TweenInfo.new(duration, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out, 0, false, delay), { Position = UDim2.fromOffset(startPosition.X, startPosition.Y) })
-		 table.insert(self._tweens, tw)
+		local tw = TweenService:Create(container, TweenInfo.new(duration, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out, 0, false, delay), { Position = UDim2.fromOffset(localX, localY) })
+		table.insert(self._tweens, tw)
 		tw:Play()
 	end
 	task.delay(maxDuration, function()
 		if self.Destroyed or self.Visible then return end
-	self.Blocker.Visible = false
-	self.Gui.Enabled = false
+		self.Blocker.Visible = false
+		self.Gui.Enabled = false
 	end)
 end
-
 function Menu:Toggle()
 	if self.Visible then self:Close() else self:Open() end
 end
