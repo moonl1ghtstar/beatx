@@ -107,7 +107,9 @@ local function toggleMenu()
 		warn("[BeatX] Right Shift menu toggle unavailable: BeatXMenu has not been created.")
 		return
 	end
+	print(string.format('[BeatX][RightShift] Toggle requested; visibleBefore=%s', tostring(BeatXMenu.Visible)))
 	BeatXMenu:Toggle()
+	print(string.format('[BeatX][RightShift] Toggle completed; visibleAfter=%s', tostring(BeatXMenu.Visible)))
 end
 
 local function installMenuToggle()
@@ -131,11 +133,13 @@ local function installMenuToggle()
 		end
 
 		rightShiftDown = true
+		print('[BeatX][RightShift] InputBegan detected')
 		toggleMenu()
 	end)
 
 	BeatX.MenuToggleInputEndedConnection = UserInputService.InputEnded:Connect(function(input)
 		if input.KeyCode == Enum.KeyCode.RightShift then
+			print('[BeatX][RightShift] InputEnded detected')
 			rightShiftDown = false
 		end
 	end)
