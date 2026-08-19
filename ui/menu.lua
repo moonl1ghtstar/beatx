@@ -495,6 +495,7 @@ function Menu:Open()
 			local wrap = colDef.Wrap
 			local container = colDef.Container
 			local catHeight = wrap.Size.Y.Offset
+			local vh = self.Gui.AbsoluteSize.Y
 
 			local refX, refY
 			if i == 1 then refX, refY = 1920, 520
@@ -507,11 +508,11 @@ function Menu:Open()
 			elseif i == 8 then refX, refY = 930, 0
 			end
 
-			local startX = refX
-			local startY = 1080 - refY
+			local robloxScreenX = refX
+			local robloxScreenY = vh - refY
 
-			local localX = startX - container.AbsolutePosition.X
-			local localY = startY - container.AbsolutePosition.Y
+			local localX = robloxScreenX - container.AbsolutePosition.X
+			local localY = robloxScreenY - container.AbsolutePosition.Y
 
 			wrap.Position = UDim2.fromOffset(localX, localY)
 			wrap.Visible = true
@@ -538,6 +539,7 @@ function Menu:Close()
 		local wrap = colDef.Wrap
 		local container = colDef.Container
 		local catHeight = wrap.Size.Y.Offset
+		local vh = self.Gui.AbsoluteSize.Y
 
 		local refX, refY
 		if i == 1 then refX, refY = 1920, 520
@@ -550,11 +552,11 @@ function Menu:Close()
 		elseif i == 8 then refX, refY = 930, 0
 		end
 
-		local startX = refX
-		local startY = 1080 - refY
+		local robloxScreenX = refX
+		local robloxScreenY = vh - refY
 
-		local localX = startX - container.AbsolutePosition.X
-		local localY = startY - container.AbsolutePosition.Y
+		local localX = robloxScreenX - container.AbsolutePosition.X
+		local localY = robloxScreenY - container.AbsolutePosition.Y
 
 		local delay = (i - 1) * 0.035
 		local duration = 0.23
