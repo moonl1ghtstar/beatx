@@ -6,20 +6,24 @@ Menu.__index = Menu
 local TweenService     = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
--- Palette
+-- ─── Palette ──────────────────────────────────────────────────────────────────
+-- Accent is exactly RGB(232, 56, 102) throughout.
+local ACCENT  = Color3.fromRGB(232, 56, 102)
+local ACCENTD = Color3.fromRGB(185, 40,  80)   -- darker shade for gradient end
+
 local C = {
-	Bg       = Color3.fromRGB(18, 17, 22),
-	ColBg    = Color3.fromRGB(22, 21, 27),
-	HdrA     = Color3.fromRGB(214, 30,  82),
-	HdrB     = Color3.fromRGB(168, 20,  62),
-	RowOff   = Color3.fromRGB(22, 21, 27),
-	RowOn    = Color3.fromRGB(130, 18,  50),
+	Bg       = Color3.fromRGB(18,  17,  22),
+	ColBg    = Color3.fromRGB(22,  21,  27),
+	HdrA     = ACCENT,
+	HdrB     = ACCENTD,
+	RowOff   = Color3.fromRGB(22,  21,  27),
+	RowOn    = Color3.fromRGB(140, 20,  55),
 	RowHov   = Color3.fromRGB(32,  30,  38),
-	RowHovOn = Color3.fromRGB(145, 22,  56),
+	RowHovOn = Color3.fromRGB(158, 28,  65),
 	TxtHdr   = Color3.fromRGB(255, 255, 255),
 	TxtOn    = Color3.fromRGB(255, 185, 200),
 	TxtOff   = Color3.fromRGB(210, 205, 220),
-	ScrollT  = Color3.fromRGB(214, 30,  82),
+	ScrollT  = ACCENT,
 	Sep      = Color3.fromRGB(34,  32,  41),
 }
 
@@ -47,6 +51,7 @@ local CATS = {
 
 local _instance = nil
 
+-- ─── Helpers ──────────────────────────────────────────────────────────────────
 local function getGuiParent()
 	local ok, cg = pcall(function() return game:GetService("CoreGui") end)
 	if ok and cg then return cg end
@@ -64,7 +69,11 @@ local function addGrad(inst, a, b)
 	g.Parent   = inst
 end
 
--- Row: no indicator, full-row highlight, centered text
+local function contentHeight(itemCount)
+	return SEP_H + itemCount * ROW_H
+end
+
+-- ─── Row ──────────────────────────────────────────────────────────────────────
 local function buildRow(parent, label)
 	local on  = false
 	local hov = false
@@ -89,7 +98,7 @@ local function buildRow(parent, label)
 	lbl.TextYAlignment         = Enum.TextYAlignment.Center
 	lbl.Size                   = UDim2.new(1, 0, 1, 0)
 	lbl.Position               = UDim2.fromOffset(0, 0)
-	lbl.Parent = row
+	lbl.Parent                 = row
 
 	local function refresh()
 		if on then
@@ -109,27 +118,41 @@ local function buildRow(parent, label)
 	return row
 end
 
--- Compute content height for a given item count
-local function contentHeight(itemCount)
-	return SEP_H + itemCount * ROW_H
-end
-
--- Column builder
--- Fix: no AutomaticSize on wrap or content — explicit sizes, set to 0 when collapsed.
--- This eliminates the leftover background: wrap height is set explicitly.
+-- ─── Column ───────────────────────────────────────────────────────────────────
+--
+-- Layout explanation (the only correct fix for leftover bg):
+--
+--   canvas (CanvasGroup, AutomaticSize=Y, bg=C.Bg, horizontal UIListLayout)
+--     └─ wrap  (Frame, fixed width=COL_W, height ALWAYS = expandedTotalH)
+--              bg = C.Bg  ← matches canvas bg; covers canvas bg below content
+--              ClipsDescendants = false (wrap is transparent/Bg-colored filler)
+--          ├─ hdr     (Frame, 0..HDR_H)
+--          └─ content (Frame, HDR_H..HDR_H+contentH, ClipsDescendants=true)
+--                      ↑ shrinks to height=0 on collapse, bg disappears with it
+--
+-- Why wrap height stays fixed:
+--   canvas AutomaticSize=Y = max child height = expandedTotalH (from tallest column).
+--   If wrap shrank on collapse, canvas bg (C.Bg, dark) would show in the vacated
+--   space. By keeping wrap full-height with bg=C.Bg, the wrap occludes that canvas
+--   bg with an identical color — visually the area is always C.Bg, never ColBg.
+--   The only colored area is hdr (accent) + content (ColBg). When content height=0
+--   there is zero ColBg visible. Wrap bg = C.Bg = same as canvas = invisible seam.
+--
 local function buildColumn(def)
 	local expandedContentH = contentHeight(#def.Items)
 	local expandedTotalH   = HDR_H + expandedContentH
 
-	-- Outer wrapper: no background, explicit height
+	-- wrap: fixed width, ALWAYS full height, bg=C.Bg to occlude canvas bg below content
 	local wrap = Instance.new("Frame")
-	wrap.Name                  = "Wrap_" .. def.Name
-	wrap.BackgroundTransparency = 1
-	wrap.BorderSizePixel       = 0
-	wrap.Size                  = UDim2.new(0, COL_W, 0, expandedTotalH)
-	-- NO AutomaticSize — we control height manually
+	wrap.Name                   = "Wrap_" .. def.Name
+	wrap.BackgroundColor3       = C.Bg       -- matches canvas bg — no seam visible
+	wrap.BackgroundTransparency = 0
+	wrap.BorderSizePixel        = 0
+	wrap.Size                   = UDim2.new(0, COL_W, 0, expandedTotalH)
+	-- Height is FIXED, never shrinks. Only content shrinks. This prevents canvas
+	-- bg from ever being exposed behind/below this column.
 
-	-- Header bar (always visible)
+	-- ── Header ──────────────────────────────────────────────────────────────
 	local hdr = Instance.new("Frame")
 	hdr.Name             = "Header"
 	hdr.BackgroundColor3 = C.HdrA
@@ -139,7 +162,7 @@ local function buildColumn(def)
 	hdr.Parent           = wrap
 	addGrad(hdr, C.HdrA, C.HdrB)
 
-	-- Collapse toggle button: right-aligned, fixed width
+	-- +/- button: LEFT side of header, fixed 20px wide
 	local colBtn = Instance.new("TextButton")
 	colBtn.AutoButtonColor        = false
 	colBtn.BackgroundTransparency = 1
@@ -150,12 +173,17 @@ local function buildColumn(def)
 	colBtn.TextSize               = 14
 	colBtn.TextScaled             = false
 	colBtn.Size                   = UDim2.fromOffset(20, HDR_H)
-	colBtn.Position               = UDim2.new(1, -20, 0, 0)
+	colBtn.Position               = UDim2.fromOffset(0, 0)   -- LEFT edge
 	colBtn.TextXAlignment         = Enum.TextXAlignment.Center
 	colBtn.TextYAlignment         = Enum.TextYAlignment.Center
-	colBtn.Parent = hdr
+	colBtn.ZIndex                 = 3
+	colBtn.Parent                 = hdr
 
-	-- Title label: full header width, centered
+	-- Title label: spans FULL header width → TextXAlignment.Center = true center
+	-- The +/- button is a sibling rendered above (ZIndex 3 vs label ZIndex 2).
+	-- Title visually sits behind the button text, but the button is only 20px wide
+	-- so the title text is only obscured at the left edge — title remains legible
+	-- and mathematically centered across the full 140px header.
 	local hdrLbl = Instance.new("TextLabel")
 	hdrLbl.BackgroundTransparency = 1
 	hdrLbl.BorderSizePixel        = 0
@@ -166,21 +194,22 @@ local function buildColumn(def)
 	hdrLbl.TextScaled             = false
 	hdrLbl.TextXAlignment         = Enum.TextXAlignment.Center
 	hdrLbl.TextYAlignment         = Enum.TextYAlignment.Center
-	-- Full header width so TextXAlignment.Center is relative to the entire header
-	hdrLbl.Position               = UDim2.fromOffset(0, 0)
-	hdrLbl.Size                   = UDim2.new(1, 0, 1, 0)
-	hdrLbl.Parent = hdr
+	hdrLbl.Position               = UDim2.fromOffset(0, 0)   -- full width, from x=0
+	hdrLbl.Size                   = UDim2.new(1, 0, 1, 0)    -- 100% header width
+	hdrLbl.ZIndex                 = 2
+	hdrLbl.Parent                 = hdr
 
-	-- Content frame: explicit height, clipped, positioned right below header
+	-- ── Content ─────────────────────────────────────────────────────────────
+	-- ClipsDescendants=true: when height=0 nothing inside renders.
+	-- BackgroundColor3=ColBg: visible only when height > 0.
 	local content = Instance.new("Frame")
-	content.Name             = "Content"
-	content.BackgroundColor3 = C.ColBg
-	content.BorderSizePixel  = 0
-	content.ClipsDescendants = true
-	content.Position         = UDim2.fromOffset(0, HDR_H)
-	content.Size             = UDim2.new(1, 0, 0, expandedContentH)
-	-- NO AutomaticSize — explicit pixel height
-	content.Parent = wrap
+	content.Name              = "Content"
+	content.BackgroundColor3  = C.ColBg
+	content.BorderSizePixel   = 0
+	content.ClipsDescendants  = true
+	content.Position          = UDim2.fromOffset(0, HDR_H)
+	content.Size              = UDim2.new(1, 0, 0, expandedContentH)
+	content.Parent            = wrap
 
 	local cList = Instance.new("UIListLayout")
 	cList.FillDirection = Enum.FillDirection.Vertical
@@ -188,7 +217,7 @@ local function buildColumn(def)
 	cList.SortOrder     = Enum.SortOrder.LayoutOrder
 	cList.Parent        = content
 
-	-- Sep line between header and content
+	-- Separator
 	local sep = Instance.new("Frame")
 	sep.BackgroundColor3 = C.Sep
 	sep.BorderSizePixel  = 0
@@ -201,26 +230,26 @@ local function buildColumn(def)
 		r.LayoutOrder = i + 1
 	end
 
-	-- Collapse: shrink wrap and content to zero, no leftover bg
+	-- ── Collapse logic ───────────────────────────────────────────────────────
+	-- wrap stays at expandedTotalH always.
+	-- Only content.Size changes: 0 when collapsed, expandedContentH when expanded.
+	-- Collapsed state: content height=0, ClipsDescendants hides children, bg invisible.
+	-- No residual dark area: wrap.Bg = C.Bg covers the space with canvas-matching color.
 	local collapsed = false
 	colBtn.MouseButton1Click:Connect(function()
 		collapsed = not collapsed
 		colBtn.Text = collapsed and "+" or "-"
 		if collapsed then
-			-- Shrink content to 0 height — background disappears with it
 			content.Size = UDim2.new(1, 0, 0, 0)
-			wrap.Size    = UDim2.new(0, COL_W, 0, HDR_H)
 		else
-			-- Restore full height
 			content.Size = UDim2.new(1, 0, 0, expandedContentH)
-			wrap.Size    = UDim2.new(0, COL_W, 0, expandedTotalH)
 		end
 	end)
 
 	return wrap
 end
 
--- Menu.new
+-- ─── Menu.new ─────────────────────────────────────────────────────────────────
 function Menu.new(BeatX)
 	if _instance then return _instance end
 
@@ -242,45 +271,41 @@ function Menu.new(BeatX)
 	gui.Enabled         = false
 	gui.Parent          = parent
 
-	-- Canvas (fade target)
-	-- Width = all cols + gaps; no rounded corners; sharp rect
+	-- Canvas dimensions
 	local totalW = #CATS * COL_W + (#CATS - 1) * COL_GAP
 
-	-- Compute max initial height (all columns fully expanded)
-	local maxColH = HDR_H + contentHeight(1)  -- each cat has 1 item
-	local totalH  = maxColH
-
+	-- CanvasGroup: horizontal container for all columns.
+	-- AutomaticSize=Y: height = tallest column = expandedTotalH (all same here).
+	-- BackgroundColor3 = C.Bg: provides the outer menu background.
+	-- No UIScale, no UICorner, no UIStroke.
 	local canvas = Instance.new("CanvasGroup")
 	canvas.Name              = "Canvas"
 	canvas.AnchorPoint       = Vector2.new(0.5, 0.5)
 	canvas.Position          = UDim2.fromScale(0.5, 0.5)
-	-- Fixed width; height auto-sizes via AutomaticSize to tallest column
 	canvas.Size              = UDim2.new(0, totalW, 0, 0)
 	canvas.AutomaticSize     = Enum.AutomaticSize.Y
 	canvas.BackgroundColor3  = C.Bg
 	canvas.GroupTransparency = 1
 	canvas.BorderSizePixel   = 0
 	canvas.Parent            = gui
-	-- NO UIScale — causes fractional pixel positions → blurry text
-	-- NO UICorner — sharp rect
 
 	local hLayout = Instance.new("UIListLayout")
-	hLayout.FillDirection     = Enum.FillDirection.Horizontal
-	hLayout.Padding           = UDim.new(0, COL_GAP)
-	hLayout.SortOrder         = Enum.SortOrder.LayoutOrder
-	hLayout.VerticalAlignment = Enum.VerticalAlignment.Top
+	hLayout.FillDirection       = Enum.FillDirection.Horizontal
+	hLayout.Padding             = UDim.new(0, COL_GAP)
+	hLayout.SortOrder           = Enum.SortOrder.LayoutOrder
+	hLayout.VerticalAlignment   = Enum.VerticalAlignment.Top
 	hLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
-	hLayout.Parent            = canvas
+	hLayout.Parent              = canvas
 
 	local columns = {}
 	for i, def in ipairs(CATS) do
-		local col     = buildColumn(def)
+		local col       = buildColumn(def)
 		col.LayoutOrder = i
-		col.Parent    = canvas
-		columns[i]    = col
+		col.Parent      = canvas
+		columns[i]      = col
 	end
 
-	-- Drag via first header
+	-- ── Drag via first header ──────────────────────────────────────────────
 	local dragging   = false
 	local dragOffset = Vector2.zero
 	local firstHdr   = columns[1] and columns[1]:FindFirstChild("Header")
@@ -332,7 +357,11 @@ function Menu:Open()
 	self.Visible                  = true
 	self.Gui.Enabled              = true
 	self.Canvas.GroupTransparency = 1
-	self._ft = TweenService:Create(self.Canvas, TweenInfo.new(0.20, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { GroupTransparency = 0 })
+	self._ft = TweenService:Create(
+		self.Canvas,
+		TweenInfo.new(0.20, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+		{ GroupTransparency = 0 }
+	)
 	self._ft:Play()
 end
 
@@ -340,7 +369,11 @@ function Menu:Close()
 	if not self.Visible then return end
 	self:_stopAnims()
 	self.Visible = false
-	self._ft = TweenService:Create(self.Canvas, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { GroupTransparency = 1 })
+	self._ft = TweenService:Create(
+		self.Canvas,
+		TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
+		{ GroupTransparency = 1 }
+	)
 	self._ft:Play()
 	task.delay(0.18, function()
 		if self.Destroyed or self.Visible then return end
