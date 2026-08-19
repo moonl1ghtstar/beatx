@@ -88,7 +88,9 @@ local function loadSource(path, url)
 end
 
 local function loadModule(path)
-	return loadSource(path, MODULE_BASE_URL .. path)
+	local cacheBust = tostring(os.time())
+	local url = MODULE_BASE_URL .. path .. "?v=" .. cacheBust
+	return loadSource(path, url)
 end
 
 local Main = {}
