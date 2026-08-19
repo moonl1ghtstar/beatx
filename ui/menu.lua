@@ -137,6 +137,10 @@ local function buildRow(parent, label)
 		ColorSequenceKeypoint.new(0, Color3.new(0, 0, 0)),
 		ColorSequenceKeypoint.new(1, ACCENT)
 	})
+	grad.Transparency = NumberSequence.new({
+		NumberSequenceKeypoint.new(0, 0),
+		NumberSequenceKeypoint.new(1, 0.5)
+	})
 	grad.Rotation = 0
 	grad.Enabled  = false
 	grad.Parent   = row
@@ -163,9 +167,9 @@ local function buildRow(parent, label)
 	bar.Name                   = "AccentBar"
 	bar.BorderSizePixel        = 0
 	bar.BackgroundColor3       = Color3.fromRGB(110, 110, 110)
-	bar.Size                   = UDim2.new(0, 2, 1, 0)
-	bar.Position               = UDim2.new(1, -1, 0, 0)
-	bar.AnchorPoint            = Vector2.new(1, 0)
+	bar.Size                   = UDim2.new(0, 2, 1, -4)
+	bar.Position               = UDim2.new(1, -2, 0.5, 0)
+	bar.AnchorPoint            = Vector2.new(1, 0.5)
 	bar.Visible                = true
 	bar.Parent                 = row
 
