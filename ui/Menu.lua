@@ -29,8 +29,8 @@ local FG = Enum.Font.Gotham
 
 local COL_W   = 140
 local COL_GAP = 4
-local ROW_H   = 20
-local HDR_H   = 22
+local ROW_H   = 22
+local HDR_H   = 24
 local SEP_H   = 1
 
 -- 8 categories, each with one "Test" demo item
@@ -70,11 +70,11 @@ local function buildRow(parent, label)
 	local hov = false
 
 	local row = Instance.new("TextButton")
-	row.AutoButtonColor       = false
-	row.BorderSizePixel       = 0
-	row.Size                  = UDim2.new(1, 0, 0, ROW_H)
-	row.Text                  = ""
-	row.BackgroundColor3      = C.RowOff
+	row.AutoButtonColor        = false
+	row.BorderSizePixel        = 0
+	row.Size                   = UDim2.new(1, 0, 0, ROW_H)
+	row.Text                   = ""
+	row.BackgroundColor3       = C.RowOff
 	row.BackgroundTransparency = 0
 
 	local lbl = Instance.new("TextLabel")
@@ -83,10 +83,12 @@ local function buildRow(parent, label)
 	lbl.Font                   = FG
 	lbl.Text                   = label
 	lbl.TextColor3             = C.TxtOff
-	lbl.TextSize               = 12
+	lbl.TextSize               = 14
+	lbl.TextScaled             = false
 	lbl.TextXAlignment         = Enum.TextXAlignment.Center
 	lbl.TextYAlignment         = Enum.TextYAlignment.Center
 	lbl.Size                   = UDim2.new(1, 0, 1, 0)
+	lbl.Position               = UDim2.fromOffset(0, 0)
 	lbl.Parent = row
 
 	local function refresh()
@@ -107,24 +109,25 @@ local function buildRow(parent, label)
 	return row
 end
 
+-- Compute content height for a given item count
+local function contentHeight(itemCount)
+	return SEP_H + itemCount * ROW_H
+end
+
 -- Column builder
--- Key fix: col uses AutomaticSize=Y so it shrinks to header only when collapsed.
--- ColBg frame is separate child under a clipping frame - avoids leftover dark bg.
+-- Fix: no AutomaticSize on wrap or content — explicit sizes, set to 0 when collapsed.
+-- This eliminates the leftover background: wrap height is set explicitly.
 local function buildColumn(def)
-	-- Outer wrapper: no background, auto-height
+	local expandedContentH = contentHeight(#def.Items)
+	local expandedTotalH   = HDR_H + expandedContentH
+
+	-- Outer wrapper: no background, explicit height
 	local wrap = Instance.new("Frame")
 	wrap.Name                  = "Wrap_" .. def.Name
 	wrap.BackgroundTransparency = 1
 	wrap.BorderSizePixel       = 0
-	wrap.Size                  = UDim2.new(0, COL_W, 0, 0)
-	wrap.AutomaticSize         = Enum.AutomaticSize.Y
-
-	-- Inner layout (header + optionally content)
-	local wList = Instance.new("UIListLayout")
-	wList.FillDirection = Enum.FillDirection.Vertical
-	wList.Padding       = UDim.new(0, 0)
-	wList.SortOrder     = Enum.SortOrder.LayoutOrder
-	wList.Parent        = wrap
+	wrap.Size                  = UDim2.new(0, COL_W, 0, expandedTotalH)
+	-- NO AutomaticSize — we control height manually
 
 	-- Header bar (always visible)
 	local hdr = Instance.new("Frame")
@@ -132,10 +135,11 @@ local function buildColumn(def)
 	hdr.BackgroundColor3 = C.HdrA
 	hdr.BorderSizePixel  = 0
 	hdr.Size             = UDim2.new(1, 0, 0, HDR_H)
-	hdr.LayoutOrder      = 1
+	hdr.Position         = UDim2.fromOffset(0, 0)
 	hdr.Parent           = wrap
 	addGrad(hdr, C.HdrA, C.HdrB)
 
+	-- Collapse toggle button: right-aligned, fixed width
 	local colBtn = Instance.new("TextButton")
 	colBtn.AutoButtonColor        = false
 	colBtn.BackgroundTransparency = 1
@@ -143,35 +147,40 @@ local function buildColumn(def)
 	colBtn.Font                   = FM
 	colBtn.Text                   = "-"
 	colBtn.TextColor3             = C.TxtHdr
-	colBtn.TextSize               = 13
+	colBtn.TextSize               = 14
+	colBtn.TextScaled             = false
 	colBtn.Size                   = UDim2.fromOffset(20, HDR_H)
+	colBtn.Position               = UDim2.new(1, -20, 0, 0)
 	colBtn.TextXAlignment         = Enum.TextXAlignment.Center
 	colBtn.TextYAlignment         = Enum.TextYAlignment.Center
 	colBtn.Parent = hdr
 
+	-- Title label: full header width, centered
 	local hdrLbl = Instance.new("TextLabel")
 	hdrLbl.BackgroundTransparency = 1
 	hdrLbl.BorderSizePixel        = 0
 	hdrLbl.Font                   = FB
 	hdrLbl.Text                   = def.Name
 	hdrLbl.TextColor3             = C.TxtHdr
-	hdrLbl.TextSize               = 12
+	hdrLbl.TextSize               = 14
+	hdrLbl.TextScaled             = false
 	hdrLbl.TextXAlignment         = Enum.TextXAlignment.Center
 	hdrLbl.TextYAlignment         = Enum.TextYAlignment.Center
-	hdrLbl.Position               = UDim2.fromOffset(20, 0)
-	hdrLbl.Size                   = UDim2.new(1, -24, 1, 0)
+	-- Full header width so TextXAlignment.Center is relative to the entire header
+	hdrLbl.Position               = UDim2.fromOffset(0, 0)
+	hdrLbl.Size                   = UDim2.new(1, 0, 1, 0)
 	hdrLbl.Parent = hdr
 
-	-- Content frame: has background, holds rows
-	-- When collapsed this frame is Visible=false, so no bg remains
+	-- Content frame: explicit height, clipped, positioned right below header
 	local content = Instance.new("Frame")
 	content.Name             = "Content"
 	content.BackgroundColor3 = C.ColBg
 	content.BorderSizePixel  = 0
-	content.Size             = UDim2.new(1, 0, 0, 0)
-	content.AutomaticSize    = Enum.AutomaticSize.Y
-	content.LayoutOrder      = 2
-	content.Parent           = wrap
+	content.ClipsDescendants = true
+	content.Position         = UDim2.fromOffset(0, HDR_H)
+	content.Size             = UDim2.new(1, 0, 0, expandedContentH)
+	-- NO AutomaticSize — explicit pixel height
+	content.Parent = wrap
 
 	local cList = Instance.new("UIListLayout")
 	cList.FillDirection = Enum.FillDirection.Vertical
@@ -192,12 +201,20 @@ local function buildColumn(def)
 		r.LayoutOrder = i + 1
 	end
 
-	-- Collapse: hide content entirely, wrap shrinks to header via AutomaticSize
+	-- Collapse: shrink wrap and content to zero, no leftover bg
 	local collapsed = false
 	colBtn.MouseButton1Click:Connect(function()
-		collapsed        = not collapsed
-		content.Visible  = not collapsed
-		colBtn.Text      = collapsed and "+" or "-"
+		collapsed = not collapsed
+		colBtn.Text = collapsed and "+" or "-"
+		if collapsed then
+			-- Shrink content to 0 height — background disappears with it
+			content.Size = UDim2.new(1, 0, 0, 0)
+			wrap.Size    = UDim2.new(0, COL_W, 0, HDR_H)
+		else
+			-- Restore full height
+			content.Size = UDim2.new(1, 0, 0, expandedContentH)
+			wrap.Size    = UDim2.new(0, COL_W, 0, expandedTotalH)
+		end
 	end)
 
 	return wrap
@@ -229,27 +246,30 @@ function Menu.new(BeatX)
 	-- Width = all cols + gaps; no rounded corners; sharp rect
 	local totalW = #CATS * COL_W + (#CATS - 1) * COL_GAP
 
+	-- Compute max initial height (all columns fully expanded)
+	local maxColH = HDR_H + contentHeight(1)  -- each cat has 1 item
+	local totalH  = maxColH
+
 	local canvas = Instance.new("CanvasGroup")
 	canvas.Name              = "Canvas"
 	canvas.AnchorPoint       = Vector2.new(0.5, 0.5)
 	canvas.Position          = UDim2.fromScale(0.5, 0.5)
+	-- Fixed width; height auto-sizes via AutomaticSize to tallest column
 	canvas.Size              = UDim2.new(0, totalW, 0, 0)
 	canvas.AutomaticSize     = Enum.AutomaticSize.Y
 	canvas.BackgroundColor3  = C.Bg
 	canvas.GroupTransparency = 1
 	canvas.BorderSizePixel   = 0
 	canvas.Parent            = gui
-	-- NO corner added -- sharp rect
-
-	local uiScale = Instance.new("UIScale")
-	uiScale.Scale  = 0.97
-	uiScale.Parent = canvas
+	-- NO UIScale — causes fractional pixel positions → blurry text
+	-- NO UICorner — sharp rect
 
 	local hLayout = Instance.new("UIListLayout")
 	hLayout.FillDirection     = Enum.FillDirection.Horizontal
 	hLayout.Padding           = UDim.new(0, COL_GAP)
 	hLayout.SortOrder         = Enum.SortOrder.LayoutOrder
 	hLayout.VerticalAlignment = Enum.VerticalAlignment.Top
+	hLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
 	hLayout.Parent            = canvas
 
 	local columns = {}
@@ -294,7 +314,6 @@ function Menu.new(BeatX)
 	local menu = setmetatable({}, Menu)
 	menu.Gui       = gui
 	menu.Canvas    = canvas
-	menu.Scale     = uiScale
 	menu.Columns   = columns
 	menu.DragConns = { dEnd, dMove }
 	menu.Visible   = false
@@ -313,10 +332,8 @@ function Menu:Open()
 	self.Visible                  = true
 	self.Gui.Enabled              = true
 	self.Canvas.GroupTransparency = 1
-	self.Scale.Scale              = 0.97
 	self._ft = TweenService:Create(self.Canvas, TweenInfo.new(0.20, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { GroupTransparency = 0 })
-	self._st = TweenService:Create(self.Scale,  TweenInfo.new(0.20, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Scale = 1 })
-	self._ft:Play(); self._st:Play()
+	self._ft:Play()
 end
 
 function Menu:Close()
@@ -324,8 +341,7 @@ function Menu:Close()
 	self:_stopAnims()
 	self.Visible = false
 	self._ft = TweenService:Create(self.Canvas, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { GroupTransparency = 1 })
-	self._st = TweenService:Create(self.Scale,  TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Scale = 0.97 })
-	self._ft:Play(); self._st:Play()
+	self._ft:Play()
 	task.delay(0.18, function()
 		if self.Destroyed or self.Visible then return end
 		self.Gui.Enabled = false
@@ -338,7 +354,6 @@ end
 
 function Menu:_stopAnims()
 	if self._ft then self._ft:Cancel() end
-	if self._st then self._st:Cancel() end
 end
 Menu.StopAnims = Menu._stopAnims
 
