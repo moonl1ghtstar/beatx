@@ -152,11 +152,11 @@ function Main.Start()
 	end
 
 	updateLoading("Loading configuration...", 60)
-	BeatX.Config = loadModule("core/Config.lua")
+	BeatX.Config = loadModule("core/config.lua")
 	updateLoading("Loading WindUI...", 66)
 	BeatX.WindUI = loadstring(game:HttpGet(WINDUI_URL, true))()
 	updateLoading("Preparing feature manager...", 72)
-	local FeatureManager = loadModule("core/FeatureManager.lua")
+	local FeatureManager = loadModule("core/featuremanager.lua")
 	BeatX.FeatureManager = FeatureManager.new(BeatX)
 
 	-- UI adapter keeps WindUI replaceable. Features should use this adapter, not WindUI directly.
@@ -185,12 +185,12 @@ function Main.Start()
 	updateLoading("Initializing user interface...", 78)
 
 	local featureFiles = {
-		"features/Analysis.lua",
-		"features/FrameWindow.lua",
-		"features/PerfectCounter.lua",
-		"features/Verification.lua",
-		"features/Visual.lua",
-		"features/HUD.lua",
+		"features/analysis.lua",
+		"features/framewindow.lua",
+		"features/perfectcounter.lua",
+		"features/verification.lua",
+		"features/visual.lua",
+		"features/hud.lua",
 	}
 	for _, path in ipairs(featureFiles) do
 		BeatX.FeatureManager:Register(loadModule(path))
