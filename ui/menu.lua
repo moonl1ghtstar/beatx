@@ -523,10 +523,11 @@ function Menu:Open()
 			local container = colDef.Container
 			local catHeight = colDef.Slot.Size.Y.Offset
 			local vw, vh = self.Gui.AbsoluteSize.X, self.Gui.AbsoluteSize.Y
-			local finalPosition = screenToParentOffset(container, container.AbsolutePosition)
+			container.Visible = true
+			local finalScreenPosition = container.AbsolutePosition
+			local finalPosition = screenToParentOffset(container, finalScreenPosition)
 			local startPosition = screenToParentOffset(container, categoryStartScreenPosition(colDef.Def.Name, catHeight, vw, vh))
 			container.Position = UDim2.fromOffset(startPosition.X, startPosition.Y)
-			container.Visible = true
 			local delay = (i - 1) * 0.035
 			local tw = TweenService:Create(container, TweenInfo.new(0.3, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out, 0, false, delay), { Position = UDim2.fromOffset(finalPosition.X, finalPosition.Y) })
 			table.insert(self._tweens, tw)
