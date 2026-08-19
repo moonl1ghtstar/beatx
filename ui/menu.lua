@@ -227,18 +227,25 @@ local function buildColumn(def, parentRow)
 	local expandedContentH = contentHeight(#def.Items)
 	local expandedTotalH   = HDR_H + expandedContentH
 
+	local slot = Instance.new("Frame")
+	slot.Name                   = "Slot_" .. def.Name
+	slot.BackgroundTransparency = 1
+	slot.BorderSizePixel        = 0
+	slot.Size                   = UDim2.new(0, COL_W, 0, expandedTotalH)
+	slot.Parent                 = parentRow
+
 	local container = Instance.new("Frame")
 	container.Name                   = "Container_" .. def.Name
 	container.BackgroundTransparency = 1
 	container.BorderSizePixel        = 0
-	container.Size                   = UDim2.new(0, COL_W, 0, expandedTotalH)
-	container.Parent                 = parentRow
+	container.Size                   = UDim2.new(1, 0, 1, 0)
+	container.Parent                 = slot
 
 	local wrap = Instance.new("Frame")
 	wrap.Name                   = "Wrap_" .. def.Name
 	wrap.BackgroundTransparency = 1
 	wrap.BorderSizePixel        = 0
-	wrap.Size                   = UDim2.new(0, COL_W, 0, expandedTotalH)
+	wrap.Size                   = UDim2.new(1, 0, 1, 0)
 	wrap.ClipsDescendants       = true
 	wrap.Parent                 = container
 
@@ -322,19 +329,15 @@ local function buildColumn(def, parentRow)
 		collapsed = not collapsed
 		colBtn.Text = collapsed and "+" or "-"
 		if collapsed then
-			content.Size   = UDim2.new(1, 0, 0, 0)
-			wrap.Size      = UDim2.new(0, COL_W, 0, HDR_H)
-			container.Size = UDim2.new(0, COL_W, 0, HDR_H)
+			content.Size = UDim2.new(1, 0, 0, 0)
+			slot.Size    = UDim2.new(0, COL_W, 0, HDR_H)
 		else
-			content.Size   = UDim2.new(1, 0, 0, expandedContentH)
-			wrap.Size      = UDim2.new(0, COL_W, 0, expandedTotalH)
-			container.Size = UDim2.new(0, COL_W, 0, expandedTotalH)
+			content.Size = UDim2.new(1, 0, 0, expandedContentH)
+			slot.Size    = UDim2.new(0, COL_W, 0, expandedTotalH)
 		end
-		-- Debug
-		-- dbgCollapse(def.Name, canvas, wrap, hdr, content)
 	end)
 
-	return { Wrap = wrap, Container = container }
+	return { Slot = slot, Container = container, Wrap = wrap }
 end
 
 -- ── Menu.new ───────────────────────────────────────────────────────────────────
@@ -424,7 +427,7 @@ function Menu.new(BeatX)
 	for i, def in ipairs(CATS) do
 		local parentRow = (def.Name == "Speedhack") and bottomRow or topRow
 		local col = buildColumn(def, parentRow)
-		col.Container.LayoutOrder = i
+		col.Slot.LayoutOrder = i
 		col.Def = def
 		columns[i] = col
 	end
@@ -482,7 +485,7 @@ function Menu:Open()
 	self.Visible = true
 
 	for _, colDef in ipairs(self.Columns) do
-		colDef.Wrap.Visible = false
+		colDef.Container.Visible = false
 	end
 
 	self.Gui.Enabled = true
@@ -492,10 +495,14 @@ function Menu:Open()
 		if not self.Visible or self.Destroyed then return end
 
 		for i, colDef in ipairs(self.Columns) do
-			local wrap = colDef.Wrap
 			local container = colDef.Container
-			local catHeight = wrap.Size.Y.Offset
+			local slot = colDef.Slot
+			local catHeight = slot.Size.Y.Offset
+			
+			local vw = self.Gui.AbsoluteSize.X
 			local vh = self.Gui.AbsoluteSize.Y
+			local scaleX = vw / 1920
+			local scaleY = vh / 1080
 
 			local refX, refY
 			if i == 1 then refX, refY = 1920, 520
@@ -508,18 +515,23 @@ function Menu:Open()
 			elseif i == 8 then refX, refY = 930, 0
 			end
 
-			local robloxScreenX = refX
-			local robloxScreenY = vh - refY
+			local robloxScreenX = refX * scaleX
+			local robloxScreenY
+			if i == 4 then
+				robloxScreenY = vh - ((1080 * scaleY) + catHeight)
+			else
+				robloxScreenY = vh - (refY * scaleY)
+			end
 
-			local localX = robloxScreenX - container.AbsolutePosition.X
-			local localY = robloxScreenY - container.AbsolutePosition.Y
+			local localX = robloxScreenX - slot.AbsolutePosition.X
+			local localY = robloxScreenY - slot.AbsolutePosition.Y
 
-			wrap.Position = UDim2.fromOffset(localX, localY)
-			wrap.Visible = true
+			container.Position = UDim2.fromOffset(localX, localY)
+			container.Visible = true
 
 			local delay = (i - 1) * 0.035
 			local tw = TweenService:Create(
-				wrap,
+				container,
 				TweenInfo.new(0.3, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out, 0, false, delay),
 				{ Position = UDim2.new(0, 0, 0, 0) }
 			)
@@ -536,10 +548,14 @@ function Menu:Close()
 
 	local maxDuration = 0
 	for i, colDef in ipairs(self.Columns) do
-		local wrap = colDef.Wrap
 		local container = colDef.Container
-		local catHeight = wrap.Size.Y.Offset
+		local slot = colDef.Slot
+		local catHeight = slot.Size.Y.Offset
+		
+		local vw = self.Gui.AbsoluteSize.X
 		local vh = self.Gui.AbsoluteSize.Y
+		local scaleX = vw / 1920
+		local scaleY = vh / 1080
 
 		local refX, refY
 		if i == 1 then refX, refY = 1920, 520
@@ -552,18 +568,23 @@ function Menu:Close()
 		elseif i == 8 then refX, refY = 930, 0
 		end
 
-		local robloxScreenX = refX
-		local robloxScreenY = vh - refY
+		local robloxScreenX = refX * scaleX
+		local robloxScreenY
+		if i == 4 then
+			robloxScreenY = vh - ((1080 * scaleY) + catHeight)
+		else
+			robloxScreenY = vh - (refY * scaleY)
+		end
 
-		local localX = robloxScreenX - container.AbsolutePosition.X
-		local localY = robloxScreenY - container.AbsolutePosition.Y
+		local localX = robloxScreenX - slot.AbsolutePosition.X
+		local localY = robloxScreenY - slot.AbsolutePosition.Y
 
 		local delay = (i - 1) * 0.035
 		local duration = 0.23
 		maxDuration = math.max(maxDuration, duration + delay)
 
 		local tw = TweenService:Create(
-			wrap,
+			container,
 			TweenInfo.new(duration, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out, 0, false, delay),
 			{ Position = UDim2.fromOffset(localX, localY) }
 		)
