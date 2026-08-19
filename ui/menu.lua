@@ -483,6 +483,9 @@ function Menu:Open()
 	self.Visible = true
 	for _, colDef in ipairs(self.Columns) do colDef.Container.Visible = false end
 	self.Gui.Enabled = true
+	self.Canvas.AnchorPoint = Vector2.new(0.5, 0)
+	self.Canvas.Position = UDim2.fromOffset(self.Gui.AbsoluteSize.X * 0.5, 0)
+	print(string.format('[BeatX][Layout] CanvasAbs=(%.0f,%.0f) CanvasSize=(%.0f,%.0f)', self.Canvas.AbsolutePosition.X, self.Canvas.AbsolutePosition.Y, self.Canvas.AbsoluteSize.X, self.Canvas.AbsoluteSize.Y))
 	self.Blocker.Visible = true
 	task.defer(function()
 		if not self.Visible or self.Destroyed then return end
