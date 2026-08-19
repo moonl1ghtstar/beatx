@@ -1,5 +1,17 @@
--- BeatX ui/Menu.lua  -- demo layout, 8 categories, sharp corners, no indicators
+--[[
 
+ /$$$$$$$                        /$$     /$$   /$$
+| $$__  $$                      | $$    | $$  / $$
+| $$  \ $$  /$$$$$$   /$$$$$$  /$$$$$$  |  $$/ $$/
+| $$$$$$$  /$$__  $$ |____  $$|_  $$_/   \  $$$$/ 
+| $$__  $$ | $$$$$$$$  /$$$$$$$  | $$      >$$  $$ 
+| $$  \ $$| $$_____/ /$$__  $$  | $$ /$$ /$$/\  $$
+| $$$$$$$/|  $$$$$$$|  $$$$$$$  |  $$$$/| $$  \ $$
+|_______/  \_______/ \_______/   \___/  |__/  |__/
+
+ BeatX - GUI Menu
+
+]]--
 local Menu = {}
 Menu.__index = Menu
 
@@ -501,7 +513,7 @@ function Menu:Open()
 			local screenX = refX * scaleX
 			local screenY = (i == 4) and (vh - ((1080 * scaleY) + catHeight)) or (vh - (refY * scaleY))
 			local localX, localY = screenX - slot.AbsolutePosition.X, screenY - slot.AbsolutePosition.Y
-			if i <= 4 then
+			if colDef.Def.Name == "BeatX" or colDef.Def.Name == "Creator" or colDef.Def.Name == "Cosmetic" or colDef.Def.Name == "Level" then
 				print(string.format('[BeatX][Anim][Open] %s i=%d screenStart=(%.0f,%.0f) localStart=(%.0f,%.0f)', colDef.Def.Name, i, screenX, screenY, localX, localY))
 				container.Position = UDim2.fromOffset(localX, localY)
 				container.Visible = true
@@ -532,7 +544,7 @@ function Menu:Close()
 		local screenX = refX * scaleX
 		local screenY = (i == 4) and (vh - ((1080 * scaleY) + catHeight)) or (vh - (refY * scaleY))
 		local localX, localY = screenX - slot.AbsolutePosition.X, screenY - slot.AbsolutePosition.Y
-		if i <= 4 then
+		if colDef.Def.Name == "BeatX" or colDef.Def.Name == "Creator" or colDef.Def.Name == "Cosmetic" or colDef.Def.Name == "Level" then
 			print(string.format('[BeatX][Anim][Close] %s i=%d screenExit=(%.0f,%.0f) localExit=(%.0f,%.0f)', colDef.Def.Name, i, screenX, screenY, localX, localY))
 			local delay, duration = (i - 1) * 0.035, 0.23
 			maxDuration = math.max(maxDuration, duration + delay)
