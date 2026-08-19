@@ -501,7 +501,7 @@ function Menu:Open()
 			local screenX = refX * scaleX
 			local screenY = (i == 4) and (vh - ((1080 * scaleY) + catHeight)) or (vh - (refY * scaleY))
 			local localX, localY = screenX - slot.AbsolutePosition.X, screenY - slot.AbsolutePosition.Y
-			if i <= 3 then
+			if i <= 4 then
 				print(string.format('[BeatX][Anim][Open] %s i=%d screenStart=(%.0f,%.0f) localStart=(%.0f,%.0f)', colDef.Def.Name, i, screenX, screenY, localX, localY))
 				container.Position = UDim2.fromOffset(localX, localY)
 				container.Visible = true
@@ -532,7 +532,7 @@ function Menu:Close()
 		local screenX = refX * scaleX
 		local screenY = (i == 4) and (vh - ((1080 * scaleY) + catHeight)) or (vh - (refY * scaleY))
 		local localX, localY = screenX - slot.AbsolutePosition.X, screenY - slot.AbsolutePosition.Y
-		if i <= 3 then
+		if i <= 4 then
 			print(string.format('[BeatX][Anim][Close] %s i=%d screenExit=(%.0f,%.0f) localExit=(%.0f,%.0f)', colDef.Def.Name, i, screenX, screenY, localX, localY))
 			local delay, duration = (i - 1) * 0.035, 0.23
 			maxDuration = math.max(maxDuration, duration + delay)
