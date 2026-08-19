@@ -1,22 +1,4 @@
--- BeatX in-game utility menu  --  ui/Menu.lua
---
--- Visual style: modelled on interface.png (MegaHack-style multi-column layout).
---   - One column per category, laid out horizontally.
---   - Red/pink gradient column headers with collapse (-/+) button.
---   - Compact 20 px toggle rows.
---   - Full-row highlight when a feature is ON (accent colour).
---   - Subtle separate hover tint distinct from the ON state.
---   - 4 px gap between columns so headers never touch.
---   - Minimise hides the canvas entirely - no dark rectangle remains.
---   - Only the 6 registered BeatX feature modules appear as toggles.
---     (All other menu items are UI controls or informational, not gameplay features.)
---
--- Singleton contract:
---   Menu.new()  returns the existing instance on re-call.
---   Close()     hides; never destroys.
---   Destroy()   is the only way to tear down the GUI.
---   Right Shift in main.lua calls Toggle() on the singleton.
---   GameId == 5385674359 guard lives in loader.lua / main.lua, untouched.
+-- BeatX ui/Menu.lua  -- demo layout, 8 categories, sharp corners, no indicators
 
 local Menu = {}
 Menu.__index = Menu
@@ -24,305 +6,201 @@ Menu.__index = Menu
 local TweenService     = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 
--- Colours (interface.png palette)
+-- Palette
 local C = {
-	OverlayBg   = Color3.fromRGB(16, 15, 20),
-	ColBg       = Color3.fromRGB(22, 21, 27),
-	ColBorder   = Color3.fromRGB(36, 34, 43),
-	HdrA        = Color3.fromRGB(214, 30,  82),
-	HdrB        = Color3.fromRGB(168, 20,  62),
-	RowOff      = Color3.fromRGB(22, 21, 27),
-	RowOn       = Color3.fromRGB(130, 18,  50),
-	RowOnEdge   = Color3.fromRGB(214, 30,  82),
-	RowHov      = Color3.fromRGB(32,  30,  38),
-	RowHovOn    = Color3.fromRGB(145, 22,  56),
-	IndOn       = Color3.fromRGB(214, 30,  82),
-	IndOff      = Color3.fromRGB(50,  47,  58),
-	TxtHdr      = Color3.fromRGB(255, 255, 255),
-	TxtOn       = Color3.fromRGB(255, 185, 200),
-	TxtOff      = Color3.fromRGB(210, 205, 220),
-	TxtMuted    = Color3.fromRGB(140, 133, 158),
-	ScrollThumb = Color3.fromRGB(214, 30,  82),
-	SepLine     = Color3.fromRGB(34,  32,  41),
-	SearchBg    = Color3.fromRGB(28,  27,  34),
-	SearchPh    = Color3.fromRGB(110, 104, 128),
+	Bg       = Color3.fromRGB(18, 17, 22),
+	ColBg    = Color3.fromRGB(22, 21, 27),
+	HdrA     = Color3.fromRGB(214, 30,  82),
+	HdrB     = Color3.fromRGB(168, 20,  62),
+	RowOff   = Color3.fromRGB(22, 21, 27),
+	RowOn    = Color3.fromRGB(130, 18,  50),
+	RowHov   = Color3.fromRGB(32,  30,  38),
+	RowHovOn = Color3.fromRGB(145, 22,  56),
+	TxtHdr   = Color3.fromRGB(255, 255, 255),
+	TxtOn    = Color3.fromRGB(255, 185, 200),
+	TxtOff   = Color3.fromRGB(210, 205, 220),
+	ScrollT  = Color3.fromRGB(214, 30,  82),
+	Sep      = Color3.fromRGB(34,  32,  41),
 }
 
 local FB = Enum.Font.GothamBold
 local FM = Enum.Font.GothamMedium
 local FG = Enum.Font.Gotham
 
-local COL_W   = 148
+local COL_W   = 140
 local COL_GAP = 4
 local ROW_H   = 20
-local HDR_H   = 24
-local IND_SZ  = 8
-local EDGE_W  = 3
+local HDR_H   = 22
 local SEP_H   = 1
+
+-- 8 categories, each with one "Test" demo item
+local CATS = {
+	{ Name = "BeatX",      Items = { "Test" } },
+	{ Name = "Creator",    Items = { "Test" } },
+	{ Name = "Cosmetic",   Items = { "Test" } },
+	{ Name = "Level",      Items = { "Test" } },
+	{ Name = "Status",     Items = { "Test" } },
+	{ Name = "Display",    Items = { "Test" } },
+	{ Name = "Utility",    Items = { "Test" } },
+	{ Name = "Speedhack",  Items = { "Test" } },
+}
 
 local _instance = nil
 
--- Feature catalogue.
--- ONLY the 6 modules actually registered via FeatureManager are listed.
--- All have Enable = TODO stubs but are real FeatureManager entries.
--- No MegaHack categories, no fake toggles.
-local FEATURE_COLUMN = {
-	Name  = "BeatX",
-	ShowSearch = false,
-	Items = {
-		{ "Analysis",       "Analysis",       false },
-		{ "Frame Window",   "FrameWindow",    false },
-		{ "HUD",            "HUD",            false },
-		{ "Perfect Counter","PerfectCounter", false },
-		{ "Verification",   "Verification",   false },
-		{ "Visual",         "Visual",         false },
-	},
-}
-
-local INFO_COLUMN = {
-	Name     = "Info",
-	ReadOnly = true,
-	Items    = {
-		{ "Version: 0.1.0",      nil, false },
-		{ "Game: Beat Bounce",   nil, false },
-		{ "Toggle: Right Shift", nil, false },
-	},
-}
-
-local COLUMNS_DEF = { FEATURE_COLUMN, INFO_COLUMN }
-
--- Helpers
 local function getGuiParent()
 	local ok, cg = pcall(function() return game:GetService("CoreGui") end)
 	if ok and cg then return cg end
 	local lp = game:GetService("Players").LocalPlayer
 	if lp then return lp:WaitForChild("PlayerGui", 5) end
-	return nil
 end
 
-local function addCorner(inst, r)
-	local c = Instance.new("UICorner")
-	c.CornerRadius = UDim.new(0, r or 0)
-	c.Parent = inst
-	return c
-end
-
-local function addGradient(inst, colorA, colorB)
+local function addGrad(inst, a, b)
 	local g = Instance.new("UIGradient")
 	g.Color = ColorSequence.new({
-		ColorSequenceKeypoint.new(0, colorA),
-		ColorSequenceKeypoint.new(1, colorB),
+		ColorSequenceKeypoint.new(0, a),
+		ColorSequenceKeypoint.new(1, b),
 	})
 	g.Rotation = 90
-	g.Parent = inst
+	g.Parent   = inst
 end
 
--- Row builder
-local function buildRow(parent, label, defaultOn, readOnly)
-	local on = defaultOn == true
+-- Row: no indicator, full-row highlight, centered text
+local function buildRow(parent, label)
+	local on  = false
+	local hov = false
 
 	local row = Instance.new("TextButton")
 	row.AutoButtonColor       = false
 	row.BorderSizePixel       = 0
 	row.Size                  = UDim2.new(1, 0, 0, ROW_H)
 	row.Text                  = ""
-	row.BackgroundColor3      = on and C.RowOn or C.RowOff
+	row.BackgroundColor3      = C.RowOff
 	row.BackgroundTransparency = 0
-	row.Parent = parent
-
-	local edge = Instance.new("Frame")
-	edge.Name                    = "Edge"
-	edge.BackgroundColor3        = C.RowOnEdge
-	edge.BorderSizePixel         = 0
-	edge.Size                    = UDim2.new(0, EDGE_W, 1, 0)
-	edge.BackgroundTransparency  = on and 0 or 1
-	edge.Parent = row
-
-	local ind = Instance.new("Frame")
-	ind.Name             = "Indicator"
-	ind.BackgroundColor3 = on and C.IndOn or C.IndOff
-	ind.BorderSizePixel  = 0
-	ind.AnchorPoint      = Vector2.new(0, 0.5)
-	ind.Position         = UDim2.new(0, EDGE_W + 6, 0.5, 0)
-	ind.Size             = UDim2.fromOffset(IND_SZ, IND_SZ)
-	ind.Parent = row
-	addCorner(ind, 1)
 
 	local lbl = Instance.new("TextLabel")
-	lbl.Name                  = "Label"
 	lbl.BackgroundTransparency = 1
-	lbl.Font                  = FG
-	lbl.Text                  = label
-	lbl.TextColor3            = on and C.TxtOn or C.TxtOff
-	lbl.TextSize              = 12
-	lbl.TextXAlignment        = Enum.TextXAlignment.Left
-	lbl.TextYAlignment        = Enum.TextYAlignment.Center
-	lbl.TextTruncate          = Enum.TextTruncate.AtEnd
-	lbl.Position              = UDim2.fromOffset(EDGE_W + 18, 0)
-	lbl.Size                  = UDim2.new(1, -(EDGE_W + 24), 1, 0)
+	lbl.BorderSizePixel        = 0
+	lbl.Font                   = FG
+	lbl.Text                   = label
+	lbl.TextColor3             = C.TxtOff
+	lbl.TextSize               = 12
+	lbl.TextXAlignment         = Enum.TextXAlignment.Center
+	lbl.TextYAlignment         = Enum.TextYAlignment.Center
+	lbl.Size                   = UDim2.new(1, 0, 1, 0)
 	lbl.Parent = row
 
-	if readOnly then
-		lbl.TextColor3 = C.TxtMuted
-		row.Active = false
-		return row
-	end
-
-	local hovering = false
-
-	local function applyState()
+	local function refresh()
 		if on then
-			row.BackgroundColor3       = hovering and C.RowHovOn or C.RowOn
-			edge.BackgroundTransparency = 0
-			ind.BackgroundColor3       = C.IndOn
-			lbl.TextColor3             = C.TxtOn
+			row.BackgroundColor3 = hov and C.RowHovOn or C.RowOn
+			lbl.TextColor3       = C.TxtOn
 		else
-			row.BackgroundColor3       = hovering and C.RowHov or C.RowOff
-			edge.BackgroundTransparency = 1
-			ind.BackgroundColor3       = C.IndOff
-			lbl.TextColor3             = C.TxtOff
+			row.BackgroundColor3 = hov and C.RowHov or C.RowOff
+			lbl.TextColor3       = C.TxtOff
 		end
 	end
 
-	row.MouseButton1Click:Connect(function()
-		on = not on
-		applyState()
-	end)
-	row.MouseEnter:Connect(function()
-		hovering = true
-		applyState()
-	end)
-	row.MouseLeave:Connect(function()
-		hovering = false
-		applyState()
-	end)
+	row.MouseButton1Click:Connect(function() on = not on; refresh() end)
+	row.MouseEnter:Connect(function()        hov = true;  refresh() end)
+	row.MouseLeave:Connect(function()        hov = false; refresh() end)
 
+	row.Parent = parent
 	return row
 end
 
 -- Column builder
+-- Key fix: col uses AutomaticSize=Y so it shrinks to header only when collapsed.
+-- ColBg frame is separate child under a clipping frame - avoids leftover dark bg.
 local function buildColumn(def)
-	local col = Instance.new("Frame")
-	col.Name             = "Col_" .. def.Name
-	col.BackgroundColor3 = C.ColBg
-	col.BorderSizePixel  = 0
-	col.Size             = UDim2.new(0, COL_W, 1, 0)
-	col.ClipsDescendants = true
+	-- Outer wrapper: no background, auto-height
+	local wrap = Instance.new("Frame")
+	wrap.Name                  = "Wrap_" .. def.Name
+	wrap.BackgroundTransparency = 1
+	wrap.BorderSizePixel       = 0
+	wrap.Size                  = UDim2.new(0, COL_W, 0, 0)
+	wrap.AutomaticSize         = Enum.AutomaticSize.Y
 
-	local bord = Instance.new("Frame")
-	bord.Name             = "ColBorder"
-	bord.BackgroundColor3 = C.ColBorder
-	bord.BorderSizePixel  = 0
-	bord.AnchorPoint      = Vector2.new(1, 0)
-	bord.Position         = UDim2.new(1, 0, 0, 0)
-	bord.Size             = UDim2.new(0, 1, 1, 0)
-	bord.Parent = col
+	-- Inner layout (header + optionally content)
+	local wList = Instance.new("UIListLayout")
+	wList.FillDirection = Enum.FillDirection.Vertical
+	wList.Padding       = UDim.new(0, 0)
+	wList.SortOrder     = Enum.SortOrder.LayoutOrder
+	wList.Parent        = wrap
 
+	-- Header bar (always visible)
 	local hdr = Instance.new("Frame")
 	hdr.Name             = "Header"
 	hdr.BackgroundColor3 = C.HdrA
 	hdr.BorderSizePixel  = 0
 	hdr.Size             = UDim2.new(1, 0, 0, HDR_H)
-	hdr.Parent = col
-	addGradient(hdr, C.HdrA, C.HdrB)
+	hdr.LayoutOrder      = 1
+	hdr.Parent           = wrap
+	addGrad(hdr, C.HdrA, C.HdrB)
 
 	local colBtn = Instance.new("TextButton")
-	colBtn.Name                    = "CollapseBtn"
-	colBtn.AutoButtonColor         = false
-	colBtn.BackgroundTransparency  = 1
-	colBtn.Font                    = FM
-	colBtn.Text                    = "-"
-	colBtn.TextColor3              = C.TxtHdr
-	colBtn.TextSize                = 13
-	colBtn.Size                    = UDim2.fromOffset(22, HDR_H)
-	colBtn.TextXAlignment          = Enum.TextXAlignment.Center
-	colBtn.TextYAlignment          = Enum.TextYAlignment.Center
+	colBtn.AutoButtonColor        = false
+	colBtn.BackgroundTransparency = 1
+	colBtn.BorderSizePixel        = 0
+	colBtn.Font                   = FM
+	colBtn.Text                   = "-"
+	colBtn.TextColor3             = C.TxtHdr
+	colBtn.TextSize               = 13
+	colBtn.Size                   = UDim2.fromOffset(20, HDR_H)
+	colBtn.TextXAlignment         = Enum.TextXAlignment.Center
+	colBtn.TextYAlignment         = Enum.TextYAlignment.Center
 	colBtn.Parent = hdr
 
 	local hdrLbl = Instance.new("TextLabel")
-	hdrLbl.Name                  = "Title"
 	hdrLbl.BackgroundTransparency = 1
-	hdrLbl.Font                  = FB
-	hdrLbl.Text                  = def.Name
-	hdrLbl.TextColor3            = C.TxtHdr
-	hdrLbl.TextSize              = 12
-	hdrLbl.TextXAlignment        = Enum.TextXAlignment.Left
-	hdrLbl.TextYAlignment        = Enum.TextYAlignment.Center
-	hdrLbl.Position              = UDim2.fromOffset(22, 0)
-	hdrLbl.Size                  = UDim2.new(1, -26, 1, 0)
+	hdrLbl.BorderSizePixel        = 0
+	hdrLbl.Font                   = FB
+	hdrLbl.Text                   = def.Name
+	hdrLbl.TextColor3             = C.TxtHdr
+	hdrLbl.TextSize               = 12
+	hdrLbl.TextXAlignment         = Enum.TextXAlignment.Center
+	hdrLbl.TextYAlignment         = Enum.TextYAlignment.Center
+	hdrLbl.Position               = UDim2.fromOffset(20, 0)
+	hdrLbl.Size                   = UDim2.new(1, -24, 1, 0)
 	hdrLbl.Parent = hdr
 
+	-- Content frame: has background, holds rows
+	-- When collapsed this frame is Visible=false, so no bg remains
+	local content = Instance.new("Frame")
+	content.Name             = "Content"
+	content.BackgroundColor3 = C.ColBg
+	content.BorderSizePixel  = 0
+	content.Size             = UDim2.new(1, 0, 0, 0)
+	content.AutomaticSize    = Enum.AutomaticSize.Y
+	content.LayoutOrder      = 2
+	content.Parent           = wrap
+
+	local cList = Instance.new("UIListLayout")
+	cList.FillDirection = Enum.FillDirection.Vertical
+	cList.Padding       = UDim.new(0, 0)
+	cList.SortOrder     = Enum.SortOrder.LayoutOrder
+	cList.Parent        = content
+
+	-- Sep line between header and content
 	local sep = Instance.new("Frame")
-	sep.Name             = "Sep"
-	sep.BackgroundColor3 = C.SepLine
+	sep.BackgroundColor3 = C.Sep
 	sep.BorderSizePixel  = 0
-	sep.Position         = UDim2.fromOffset(0, HDR_H)
 	sep.Size             = UDim2.new(1, 0, 0, SEP_H)
-	sep.Parent = col
+	sep.LayoutOrder      = 1
+	sep.Parent           = content
 
-	local scroll = Instance.new("ScrollingFrame")
-	scroll.Name                  = "Scroll"
-	scroll.BackgroundTransparency = 1
-	scroll.BorderSizePixel       = 0
-	scroll.Position              = UDim2.fromOffset(0, HDR_H + SEP_H)
-	scroll.Size                  = UDim2.new(1, 0, 1, -(HDR_H + SEP_H))
-	scroll.CanvasSize            = UDim2.fromOffset(0, 0)
-	scroll.AutomaticCanvasSize   = Enum.AutomaticSize.Y
-	scroll.ScrollBarThickness    = 3
-	scroll.ScrollBarImageColor3  = C.ScrollThumb
-	scroll.ScrollingDirection    = Enum.ScrollingDirection.Y
-	scroll.ElasticBehavior       = Enum.ElasticBehavior.Never
-	scroll.Parent = col
-
-	local itemList = Instance.new("UIListLayout")
-	itemList.Padding   = UDim.new(0, 0)
-	itemList.SortOrder = Enum.SortOrder.LayoutOrder
-	itemList.Parent    = scroll
-
-	if def.ShowSearch then
-		local sf = Instance.new("Frame")
-		sf.BackgroundColor3 = C.SearchBg
-		sf.BorderSizePixel  = 0
-		sf.Size             = UDim2.new(1, 0, 0, 28)
-		sf.LayoutOrder      = 0
-		sf.Parent = scroll
-
-		local sb = Instance.new("TextBox")
-		sb.BackgroundTransparency = 1
-		sb.Font                   = FG
-		sb.PlaceholderText        = "Search"
-		sb.Text                   = ""
-		sb.PlaceholderColor3      = C.SearchPh
-		sb.TextColor3             = C.TxtOff
-		sb.TextSize               = 12
-		sb.TextXAlignment         = Enum.TextXAlignment.Left
-		sb.ClearTextOnFocus       = false
-		sb.Position               = UDim2.fromOffset(8, 0)
-		sb.Size                   = UDim2.new(1, -16, 1, 0)
-		sb.Parent = sf
+	for i, name in ipairs(def.Items) do
+		local r = buildRow(content, name)
+		r.LayoutOrder = i + 1
 	end
 
-	for i, item in ipairs(def.Items) do
-		local r = buildRow(scroll, item[1], item[3], def.ReadOnly)
-		r.LayoutOrder = i
-	end
-
-	-- Collapse: hide scroll + sep and shrink the column Frame height
-	-- so no dark background remains.
+	-- Collapse: hide content entirely, wrap shrinks to header via AutomaticSize
 	local collapsed = false
 	colBtn.MouseButton1Click:Connect(function()
-		collapsed = not collapsed
-		scroll.Visible = not collapsed
-		sep.Visible    = not collapsed
-		colBtn.Text    = collapsed and "+" or "-"
-		col.Size = UDim2.new(
-			0, COL_W,
-			collapsed and 0 or 1,
-			collapsed and HDR_H or 0
-		)
+		collapsed        = not collapsed
+		content.Visible  = not collapsed
+		colBtn.Text      = collapsed and "+" or "-"
 	end)
 
-	return col
+	return wrap
 end
 
 -- Menu.new
@@ -330,39 +208,38 @@ function Menu.new(BeatX)
 	if _instance then return _instance end
 
 	local parent = getGuiParent()
-	assert(parent, "[BeatX] No GUI parent found for BeatX menu.")
+	assert(parent, "[BeatX] no GUI parent")
 
 	do
 		local old = parent:FindFirstChild("BeatXMenu")
 		if old then old:Destroy() end
 	end
 
+	-- ScreenGui
 	local gui = Instance.new("ScreenGui")
-	gui.Name           = "BeatXMenu"
-	gui.ResetOnSpawn   = false
-	gui.IgnoreGuiInset = true
-	gui.DisplayOrder   = 950
-	gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-	gui.Enabled        = false
-	gui.Parent         = parent
+	gui.Name            = "BeatXMenu"
+	gui.ResetOnSpawn    = false
+	gui.IgnoreGuiInset  = true
+	gui.DisplayOrder    = 950
+	gui.ZIndexBehavior  = Enum.ZIndexBehavior.Sibling
+	gui.Enabled         = false
+	gui.Parent          = parent
 
-	local totalW = #COLUMNS_DEF * COL_W + (#COLUMNS_DEF - 1) * COL_GAP
+	-- Canvas (fade target)
+	-- Width = all cols + gaps; no rounded corners; sharp rect
+	local totalW = #CATS * COL_W + (#CATS - 1) * COL_GAP
 
 	local canvas = Instance.new("CanvasGroup")
 	canvas.Name              = "Canvas"
 	canvas.AnchorPoint       = Vector2.new(0.5, 0.5)
 	canvas.Position          = UDim2.fromScale(0.5, 0.5)
-	canvas.Size              = UDim2.new(0, totalW, 0.88, 0)
-	canvas.BackgroundColor3  = C.OverlayBg
+	canvas.Size              = UDim2.new(0, totalW, 0, 0)
+	canvas.AutomaticSize     = Enum.AutomaticSize.Y
+	canvas.BackgroundColor3  = C.Bg
 	canvas.GroupTransparency = 1
 	canvas.BorderSizePixel   = 0
-	canvas.Parent = gui
-	addCorner(canvas, 3)
-
-	local sc = Instance.new("UISizeConstraint")
-	sc.MinSize = Vector2.new(totalW, 240)
-	sc.MaxSize = Vector2.new(totalW, 880)
-	sc.Parent  = canvas
+	canvas.Parent            = gui
+	-- NO corner added -- sharp rect
 
 	local uiScale = Instance.new("UIScale")
 	uiScale.Scale  = 0.97
@@ -373,16 +250,17 @@ function Menu.new(BeatX)
 	hLayout.Padding           = UDim.new(0, COL_GAP)
 	hLayout.SortOrder         = Enum.SortOrder.LayoutOrder
 	hLayout.VerticalAlignment = Enum.VerticalAlignment.Top
-	hLayout.Parent = canvas
+	hLayout.Parent            = canvas
 
 	local columns = {}
-	for i, def in ipairs(COLUMNS_DEF) do
-		local col = buildColumn(def)
+	for i, def in ipairs(CATS) do
+		local col     = buildColumn(def)
 		col.LayoutOrder = i
-		col.Parent      = canvas
-		columns[i]      = col
+		col.Parent    = canvas
+		columns[i]    = col
 	end
 
+	-- Drag via first header
 	local dragging   = false
 	local dragOffset = Vector2.zero
 	local firstHdr   = columns[1] and columns[1]:FindFirstChild("Header")
@@ -427,9 +305,7 @@ function Menu.new(BeatX)
 	return menu
 end
 
-function Menu.Get()
-	return _instance
-end
+function Menu.Get() return _instance end
 
 function Menu:Open()
 	if self.Visible then return end
@@ -438,39 +314,18 @@ function Menu:Open()
 	self.Gui.Enabled              = true
 	self.Canvas.GroupTransparency = 1
 	self.Scale.Scale              = 0.97
-
-	self._ft = TweenService:Create(
-		self.Canvas,
-		TweenInfo.new(0.20, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-		{ GroupTransparency = 0 }
-	)
-	self._st = TweenService:Create(
-		self.Scale,
-		TweenInfo.new(0.20, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-		{ Scale = 1 }
-	)
-	self._ft:Play()
-	self._st:Play()
+	self._ft = TweenService:Create(self.Canvas, TweenInfo.new(0.20, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { GroupTransparency = 0 })
+	self._st = TweenService:Create(self.Scale,  TweenInfo.new(0.20, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Scale = 1 })
+	self._ft:Play(); self._st:Play()
 end
 
 function Menu:Close()
 	if not self.Visible then return end
 	self:_stopAnims()
 	self.Visible = false
-
-	self._ft = TweenService:Create(
-		self.Canvas,
-		TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-		{ GroupTransparency = 1 }
-	)
-	self._st = TweenService:Create(
-		self.Scale,
-		TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-		{ Scale = 0.97 }
-	)
-	self._ft:Play()
-	self._st:Play()
-
+	self._ft = TweenService:Create(self.Canvas, TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { GroupTransparency = 1 })
+	self._st = TweenService:Create(self.Scale,  TweenInfo.new(0.15, Enum.EasingStyle.Quad, Enum.EasingDirection.In), { Scale = 0.97 })
+	self._ft:Play(); self._st:Play()
 	task.delay(0.18, function()
 		if self.Destroyed or self.Visible then return end
 		self.Gui.Enabled = false
