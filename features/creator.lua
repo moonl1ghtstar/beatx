@@ -1,13 +1,18 @@
 return {
-	Name = "FrameWindow",
+	Name = "Creator",
 	Enabled = false,
+
 	Init = function(self, BeatX)
 		self.BeatX = BeatX
 	end,
+
 	Enable = function(self)
-		-- TODO: expose frame-window data from trusted game state.
+		-- feature implementation
 	end,
-	Disable = function(self) end,
+
+	Disable = function(self)
+	end,
+
 	Destroy = function(self)
 		self.BeatX = nil
 	end,

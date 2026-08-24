@@ -192,12 +192,14 @@ function Main.Start()
 	updateLoading("Initializing user interface...", 78)
 
 	local featureFiles = {
-		"features/analysis.lua",
-		"features/framewindow.lua",
-		"features/perfectcounter.lua",
-		"features/verification.lua",
-		"features/visual.lua",
-		"features/hud.lua",
+		"features/beatx.lua",
+		"features/creator.lua",
+		"features/cosmetic.lua",
+		"features/level.lua",
+		"features/status.lua",
+		"features/display.lua",
+		"features/utility.lua",
+		"features/speedhack.lua",
 	}
 	for _, path in ipairs(featureFiles) do
 		BeatX.FeatureManager:Register(loadModule(path))
