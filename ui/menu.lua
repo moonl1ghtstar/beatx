@@ -18,7 +18,7 @@ Menu.__index = Menu
 local TweenService     = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local RunService       = game:GetService("RunService")
-local MENU_TOP_Y      = -38
+local MENU_TOP_Y       = 0
 
 -- ── Debug ──────────────────────────────────────────────────────────────────────
 -- Set true to print collapse hierarchy + apply distinct debug colors per layer.
