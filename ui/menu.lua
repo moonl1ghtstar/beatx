@@ -523,21 +523,10 @@ function Menu:Open()
 			local vw, vh = self.Gui.AbsoluteSize.X, self.Gui.AbsoluteSize.Y
 			local scaleX, scaleY = vw / 1920, vh / 1080
 			local refX, refY
-			if i == 1 then refX, refY = 1920, 520 elseif i == 2 then refX, refY = 1920, 560 elseif i == 3 then refX, refY = 950, 0 elseif i == 4 then refX, refY = 1440, catHeight + 1080 elseif i == 5 then refX, refY = 1920, 800 elseif i == 6 then refX, refY = 1920, 850 elseif i == 7 then refX, refY = 620, 0 elseif i == 8 then refX, refY = 930, 0 end
+			if i == 1 then refX, refY = 1920, 520 elseif i == 2 then refX, refY = 1920, 560 elseif i == 3 then refX, refY = 950, 0 elseif i == 4 then refX, refY = 1440, ((slot.AbsoluteSize.Y > 0 and slot.AbsoluteSize.Y or catHeight) + 1080) elseif i == 5 then refX, refY = 1920, 800 elseif i == 6 then refX, refY = 1920, 850 elseif i == 7 then refX, refY = 620, 0 elseif i == 8 then refX, refY = 930, 0 end
 			local screenX = refX * scaleX
-						local screenY
-			if i == 4 then
-				local levelHeight = HDR_H
-				if levelHeight <= 0 then levelHeight = HDR_H end
-				local levelReferenceY = 1280 + levelHeight
-				screenY = vh - (levelReferenceY * scaleY)
-			else
-				screenY = vh - (refY * scaleY)
-			end
-						local localX, localY = screenX - slot.AbsolutePosition.X, screenY - slot.AbsolutePosition.Y
-			if i == 4 then
-				localY = localY - HDR_H
-			end
+			local screenY = vh - (refY * scaleY)
+			local localX, localY = screenX - slot.AbsolutePosition.X, screenY - slot.AbsolutePosition.Y
 			if colDef.Def.Name == "BeatX" or colDef.Def.Name == "Creator" or colDef.Def.Name == "Cosmetic" or colDef.Def.Name == "Level" then
 				print(string.format('[BeatX][Anim][Open] %s i=%d screenStart=(%.0f,%.0f) localStart=(%.0f,%.0f)', colDef.Def.Name, i, screenX, screenY, localX, localY))
 				container.Position = UDim2.fromOffset(localX, localY)
@@ -565,21 +554,10 @@ function Menu:Close()
 		local vw, vh = self.Gui.AbsoluteSize.X, self.Gui.AbsoluteSize.Y
 		local scaleX, scaleY = vw / 1920, vh / 1080
 		local refX, refY
-		if i == 1 then refX, refY = 1920, 520 elseif i == 2 then refX, refY = 1920, 560 elseif i == 3 then refX, refY = 950, 0 elseif i == 4 then refX, refY = 1440, catHeight + 1080 elseif i == 5 then refX, refY = 1920, 800 elseif i == 6 then refX, refY = 1920, 850 elseif i == 7 then refX, refY = 620, 0 elseif i == 8 then refX, refY = 930, 0 end
+		if i == 1 then refX, refY = 1920, 520 elseif i == 2 then refX, refY = 1920, 560 elseif i == 3 then refX, refY = 950, 0 elseif i == 4 then refX, refY = 1440, ((slot.AbsoluteSize.Y > 0 and slot.AbsoluteSize.Y or catHeight) + 1080) elseif i == 5 then refX, refY = 1920, 800 elseif i == 6 then refX, refY = 1920, 850 elseif i == 7 then refX, refY = 620, 0 elseif i == 8 then refX, refY = 930, 0 end
 		local screenX = refX * scaleX
-					local screenY
-			if i == 4 then
-				local levelHeight = HDR_H
-				if levelHeight <= 0 then levelHeight = HDR_H end
-				local levelReferenceY = 1080 + levelHeight
-				screenY = vh - (levelReferenceY * scaleY)
-			else
-				screenY = vh - (refY * scaleY)
-			end
-					local localX, localY = screenX - slot.AbsolutePosition.X, screenY - slot.AbsolutePosition.Y
-			if i == 4 then
-				localY = localY - HDR_H
-			end
+		local screenY = vh - (refY * scaleY)
+		local localX, localY = screenX - slot.AbsolutePosition.X, screenY - slot.AbsolutePosition.Y
 		if colDef.Def.Name == "BeatX" or colDef.Def.Name == "Creator" or colDef.Def.Name == "Cosmetic" or colDef.Def.Name == "Level" then
 			print(string.format('[BeatX][Anim][Close] %s i=%d screenExit=(%.0f,%.0f) localExit=(%.0f,%.0f)', colDef.Def.Name, i, screenX, screenY, localX, localY))
 			local delay, duration = (i - 1) * 0.035, 0.23
