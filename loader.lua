@@ -14,6 +14,7 @@
 ]]--
 
 local MAIN_URL = "https://raw.githubusercontent.com/moonl1ghtstar/beatx/main/main.lua"
+local COMMIT_API_URL = "https://api.github.com/repos/moonl1ghtstar/beatx/commits/main"
 local BEATX_GAME_ID = 5385674359
 
 if shared.BeatX and type(shared.BeatX.Destroy) == "function" then
@@ -37,6 +38,39 @@ end
 local LoaderController = {}
 LoaderController.__index = LoaderController
 local TweenService = game:GetService("TweenService")
+local HttpService = game:GetService("HttpService")
+
+local function getLatestCommitInfo()
+	local ok, body = pcall(function()
+		return game:HttpGet(COMMIT_API_URL, true)
+	end)
+
+	if not ok or type(body) ~= "string" then
+		return nil, "unavailable"
+	end
+
+	local decodedOk, data = pcall(function()
+		return HttpService:JSONDecode(body)
+	end)
+
+	if not decodedOk or type(data) ~= "table" or type(data.sha) ~= "string" then
+		return nil, "invalid response"
+	end
+
+	local message = "No commit message"
+	if type(data.commit) == "table" and type(data.commit.message) == "string" then
+		message = data.commit.message:gsub("%s+", " ")
+		if #message > 42 then
+			message = message:sub(1, 39) .. "..."
+		end
+	end
+
+	return {
+		Sha = data.sha,
+		ShortSha = data.sha:sub(1, 7),
+		Message = message,
+	}
+end
 
 local function getGuiParent()
 	local ok, coreGui = pcall(function()
@@ -239,9 +273,25 @@ local function createLoaderGui()
 	percentConstraint.MaxTextSize = 13
 	percentConstraint.Parent = percent
 
+	local commit = Instance.new("TextLabel")
+	commit.Name = "Commit"
+	commit.AnchorPoint = Vector2.new(1, 1)
+	commit.Position = UDim2.fromScale(0.985, 0.975)
+	commit.Size = UDim2.fromOffset(430, 24)
+	commit.BackgroundTransparency = 1
+	commit.Font = Enum.Font.Code
+	commit.Text = "commit: fetching..."
+	commit.TextColor3 = Color3.fromRGB(128, 119, 153)
+	commit.TextSize = 12
+	commit.TextXAlignment = Enum.TextXAlignment.Right
+	commit.TextYAlignment = Enum.TextYAlignment.Center
+	commit.TextTransparency = 1
+	commit.ZIndex = 20
+	commit.Parent = gui
+
 	gui.Parent = parent
 
-	return gui, detail, percent, progressFill, subtitle, title, scale, background, glows, progressTrack
+	return gui, detail, percent, progressFill, subtitle, title, scale, background, glows, progressTrack, commit
 end
 
 function LoaderController.new()
@@ -249,7 +299,7 @@ function LoaderController.new()
 		return shared.ACTIVE_LOADER
 	end
 
-	local gui, detail, percent, progressFill, subtitle, title, scale, background, glows, progressTrack = createLoaderGui()
+	local gui, detail, percent, progressFill, subtitle, title, scale, background, glows, progressTrack, commit = createLoaderGui()
 	local self = setmetatable({
 		Progress = 0,
 		Gui = gui,
@@ -262,6 +312,7 @@ function LoaderController.new()
 		Background = background,
 		Glows = glows,
 		ProgressTrack = progressTrack,
+		Commit = commit,
 	}, LoaderController)
 	shared.ACTIVE_LOADER = self
 
@@ -280,12 +331,25 @@ function LoaderController.new()
 		TweenService:Create(scale, TweenInfo.new(0.55, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {
 			Scale = 1,
 		}):Play()
-		for _, object in ipairs({ title, subtitle, detail, percent }) do
+		for _, object in ipairs({ title, subtitle, detail, percent, commit }) do
 			TweenService:Create(object, TweenInfo.new(0.42, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
 				TextTransparency = 0,
 			}):Play()
 		end
 	end
+
+	task.spawn(function()
+		local info, reason = getLatestCommitInfo()
+		if self.Destroyed or not self.Commit then
+			return
+		end
+
+		if info then
+			self.Commit.Text = string.format("commit %s  •  %s", info.ShortSha, info.Message)
+		else
+			self.Commit.Text = "commit: " .. tostring(reason)
+		end
+	end)
 
 	return self
 end
@@ -331,7 +395,7 @@ function LoaderController:Destroy()
 		for _, glow in ipairs(self.Glows) do
 			TweenService:Create(glow, fadeInfo, { BackgroundTransparency = 1 }):Play()
 		end
-		for _, object in ipairs({ self.Title, self.Subtitle, self.Detail, self.Percent }) do
+		for _, object in ipairs({ self.Title, self.Subtitle, self.Detail, self.Percent, self.Commit }) do
 			TweenService:Create(object, fadeInfo, { TextTransparency = 1 }):Play()
 		end
 		task.delay(0.5, function()
