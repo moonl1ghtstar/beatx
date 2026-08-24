@@ -16,7 +16,7 @@ local Menu = {}
 Menu.__index = Menu
 
 local UserInputService = game:GetService("UserInputService")
-local MENU_TOP_Y       = 2
+local MENU_TOP_Y       = 5
 
 -- ── Debug ──────────────────────────────────────────────────────────────────────
 -- Set true to print collapse hierarchy + apply distinct debug colors per layer.
