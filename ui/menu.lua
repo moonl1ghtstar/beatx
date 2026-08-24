@@ -529,7 +529,7 @@ function Menu:Open()
 			if i == 4 then
 				local levelHeight = HDR_H
 				if levelHeight <= 0 then levelHeight = HDR_H end
-				local levelReferenceY = 1080 + levelHeight
+				local levelReferenceY = 1280 + levelHeight
 				screenY = vh - (levelReferenceY * scaleY)
 			else
 				screenY = vh - (refY * scaleY)
