@@ -15,9 +15,7 @@
 local Menu = {}
 Menu.__index = Menu
 
-local TweenService     = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
-local RunService       = game:GetService("RunService")
 local MENU_TOP_Y       = -20
 
 -- ── Debug ──────────────────────────────────────────────────────────────────────
@@ -133,26 +131,6 @@ local function contentHeight(itemCount)
 	return SEP_H + itemCount * ROW_H
 end
 
-local function snapCanvasTop(canvas, targetTop)
-	targetTop = targetTop or MENU_TOP_Y
-	local deltaY = targetTop - canvas.AbsolutePosition.Y
-	if math.abs(deltaY) < 0.5 then
-		return
-	end
-	local pos = canvas.Position
-	canvas.Position = UDim2.fromOffset(pos.X.Offset, pos.Y.Offset + deltaY)
-	RunService.Heartbeat:Wait()
-end
-local function logAnimSpace(tag, name, i, catHeight, slot, vw, vh, scaleX, scaleY, refX, refY, screenX, screenY, localX, localY)
-	print(string.format(
-		"[BeatX][Anim][%s][DBG] %s i=%d catHeight=%d slotAbs=(%.0f,%.0f) slotSize=(%.0f,%.0f) vh=%d vw=%d scale=(%.4f,%.4f) ref=(%.0f,%.0f) screen=(%.0f,%.0f) local=(%.0f,%.0f)",
-		tag, name, i, catHeight,
-		slot.AbsolutePosition.X, slot.AbsolutePosition.Y,
-		slot.AbsoluteSize.X, slot.AbsoluteSize.Y,
-		vh, vw, scaleX, scaleY,
-		refX, refY, screenX, screenY, localX, localY
-	))
-end
 local function buildRow(parent, label)
 	local on  = false
 	local hov = false
@@ -512,89 +490,38 @@ end
 
 function Menu.Get() return _instance end
 
+-- ── Open / Close ───────────────────────────────────────────────────────────────
+-- NOTE: Light Shift-style open/close animation temporarily disabled (hard to
+-- debug, especially Level's dynamic positioning). Menu now shows/hides
+-- instantly. A new animation system can be reintroduced here later.
+
 function Menu:Open()
 	if self.Visible then return end
 	self:_stopAnims()
 	self.Visible = true
-	for _, colDef in ipairs(self.Columns) do colDef.Container.Visible = false end
 	self.Gui.Enabled = true
 	self.Canvas.AnchorPoint = Vector2.new(0.5, 0)
 	self.Canvas.Position = UDim2.fromOffset(self.Gui.AbsoluteSize.X * 0.5, MENU_TOP_Y)
 	self.Blocker.Visible = true
-	self.Canvas.Position = UDim2.fromOffset(self.Gui.AbsoluteSize.X * 0.5, MENU_TOP_Y)
-	task.defer(function()
-		if not self.Visible or self.Destroyed then return end
-		self.Canvas.Position = UDim2.fromOffset(self.Gui.AbsoluteSize.X * 0.5, MENU_TOP_Y)
-		snapCanvasTop(self.Canvas, MENU_TOP_Y)
-		print(string.format('[BeatX][Layout] Open CanvasAbs=(%.0f,%.0f) CanvasPos=%s', self.Canvas.AbsolutePosition.X, self.Canvas.AbsolutePosition.Y, tostring(self.Canvas.Position)))
-		for i, colDef in ipairs(self.Columns) do
-			local container, slot = colDef.Container, colDef.Slot
-			local catHeight = slot.Size.Y.Offset
-			local vw, vh = self.Gui.AbsoluteSize.X, self.Gui.AbsoluteSize.Y
-			local scaleX, scaleY = vw / 1920, vh / 1080
-			local refX, refY
-			if i == 1 then refX, refY = 1920, 520 elseif i == 2 then refX, refY = 1920, 560 elseif i == 3 then refX, refY = 950, 0 elseif i == 4 then refX, refY = 1440, catHeight + 1080 elseif i == 5 then refX, refY = 1920, 800 elseif i == 6 then refX, refY = 1920, 850 elseif i == 7 then refX, refY = 620, 0 elseif i == 8 then refX, refY = 930, 0 end
-			local screenX = refX * scaleX
-			local screenY = vh - (refY * scaleY)
-			local localX, localY = screenX - slot.AbsolutePosition.X, screenY - slot.AbsolutePosition.Y
-			if colDef.Def.Name == "BeatX" or colDef.Def.Name == "Creator" or colDef.Def.Name == "Cosmetic" or colDef.Def.Name == "Level" then
-				print(string.format('[BeatX][Anim][Open] %s i=%d screenStart=(%.0f,%.0f) localStart=(%.0f,%.0f)', colDef.Def.Name, i, screenX, screenY, localX, localY))
-				if colDef.Def.Name == "BeatX" or colDef.Def.Name == "Creator" or colDef.Def.Name == "Level" then
-					logAnimSpace("Open", colDef.Def.Name, i, catHeight, slot, vw, vh, scaleX, scaleY, refX, refY, screenX, screenY, localX, localY)
-				end
-				container.Position = UDim2.fromOffset(localX, localY)
-				container.Visible = true
-				local delay = (i - 1) * 0.035
-				local tw = TweenService:Create(container, TweenInfo.new(0.3, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out, 0, false, delay), { Position = UDim2.new(0, 0, 0, 0) })
-				table.insert(self._tweens, tw)
-				tw:Play()
-			else
-				container.Position = UDim2.fromOffset(0, 0)
-				container.Visible = true
-			end
-		end
-	end)
+	for _, colDef in ipairs(self.Columns) do
+		colDef.Container.Position = UDim2.fromOffset(0, 0)
+		colDef.Container.Visible = true
+	end
 end
 
 function Menu:Close()
 	if not self.Visible then return end
 	self:_stopAnims()
 	self.Visible = false
-	local maxDuration = 0
-	for i, colDef in ipairs(self.Columns) do
-		local container, slot = colDef.Container, colDef.Slot
-		local catHeight = slot.Size.Y.Offset
-		local vw, vh = self.Gui.AbsoluteSize.X, self.Gui.AbsoluteSize.Y
-		local scaleX, scaleY = vw / 1920, vh / 1080
-		local refX, refY
-		if i == 1 then refX, refY = 1920, 520 elseif i == 2 then refX, refY = 1920, 560 elseif i == 3 then refX, refY = 950, 0 elseif i == 4 then refX, refY = 1440, catHeight + 1080 elseif i == 5 then refX, refY = 1920, 800 elseif i == 6 then refX, refY = 1920, 850 elseif i == 7 then refX, refY = 620, 0 elseif i == 8 then refX, refY = 930, 0 end
-		local screenX = refX * scaleX
-		local screenY = vh - (refY * scaleY)
-		local localX, localY = screenX - slot.AbsolutePosition.X, screenY - slot.AbsolutePosition.Y
-		if colDef.Def.Name == "BeatX" or colDef.Def.Name == "Creator" or colDef.Def.Name == "Cosmetic" or colDef.Def.Name == "Level" then
-			print(string.format('[BeatX][Anim][Close] %s i=%d screenExit=(%.0f,%.0f) localExit=(%.0f,%.0f)', colDef.Def.Name, i, screenX, screenY, localX, localY))
-			if colDef.Def.Name == "BeatX" or colDef.Def.Name == "Creator" or colDef.Def.Name == "Level" then
-				logAnimSpace("Close", colDef.Def.Name, i, catHeight, slot, vw, vh, scaleX, scaleY, refX, refY, screenX, screenY, localX, localY)
-			end
-			local delay, duration = (i - 1) * 0.035, 0.23
-			maxDuration = math.max(maxDuration, duration + delay)
-			local tw = TweenService:Create(container, TweenInfo.new(duration, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out, 0, false, delay), { Position = UDim2.fromOffset(localX, localY) })
-			table.insert(self._tweens, tw)
-			tw:Play()
-		else
-			container.Position = UDim2.fromOffset(0, 0)
-		end
-	end
-	task.delay(maxDuration, function()
-		if self.Destroyed or self.Visible then return end
-		self.Blocker.Visible = false
-		self.Gui.Enabled = false
-	end)
+	self.Blocker.Visible = false
+	self.Gui.Enabled = false
 end
 function Menu:Toggle()
 	if self.Visible then self:Close() else self:Open() end
 end
 
+-- Tween registry kept as a no-op while the open/close animation is disabled;
+-- a future animation system can track its tweens here again.
 function Menu:_stopAnims()
 	if self._tweens then
 		for _, tw in ipairs(self._tweens) do
