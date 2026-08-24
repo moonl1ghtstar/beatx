@@ -534,7 +534,10 @@ function Menu:Open()
 			else
 				screenY = vh - (refY * scaleY)
 			end
-			local localX, localY = screenX - slot.AbsolutePosition.X, screenY - slot.AbsolutePosition.Y
+						local localX, localY = screenX - slot.AbsolutePosition.X, screenY - slot.AbsolutePosition.Y
+			if i == 4 then
+				localY = localY - HDR_H
+			end
 			if colDef.Def.Name == "BeatX" or colDef.Def.Name == "Creator" or colDef.Def.Name == "Cosmetic" or colDef.Def.Name == "Level" then
 				print(string.format('[BeatX][Anim][Open] %s i=%d screenStart=(%.0f,%.0f) localStart=(%.0f,%.0f)', colDef.Def.Name, i, screenX, screenY, localX, localY))
 				container.Position = UDim2.fromOffset(localX, localY)
@@ -573,7 +576,10 @@ function Menu:Close()
 			else
 				screenY = vh - (refY * scaleY)
 			end
-		local localX, localY = screenX - slot.AbsolutePosition.X, screenY - slot.AbsolutePosition.Y
+					local localX, localY = screenX - slot.AbsolutePosition.X, screenY - slot.AbsolutePosition.Y
+			if i == 4 then
+				localY = localY - HDR_H
+			end
 		if colDef.Def.Name == "BeatX" or colDef.Def.Name == "Creator" or colDef.Def.Name == "Cosmetic" or colDef.Def.Name == "Level" then
 			print(string.format('[BeatX][Anim][Close] %s i=%d screenExit=(%.0f,%.0f) localExit=(%.0f,%.0f)', colDef.Def.Name, i, screenX, screenY, localX, localY))
 			local delay, duration = (i - 1) * 0.035, 0.23
