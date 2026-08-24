@@ -143,6 +143,16 @@ local function snapCanvasTop(canvas, targetTop)
 	canvas.Position = UDim2.fromOffset(pos.X.Offset, pos.Y.Offset + deltaY)
 	RunService.Heartbeat:Wait()
 end
+local function logAnimSpace(tag, name, i, catHeight, slot, vw, vh, scaleX, scaleY, refX, refY, screenX, screenY, localX, localY)
+	print(string.format(
+		"[BeatX][Anim][%s][DBG] %s i=%d catHeight=%d slotAbs=(%.0f,%.0f) slotSize=(%.0f,%.0f) vh=%d vw=%d scale=(%.4f,%.4f) ref=(%.0f,%.0f) screen=(%.0f,%.0f) local=(%.0f,%.0f)",
+		tag, name, i, catHeight,
+		slot.AbsolutePosition.X, slot.AbsolutePosition.Y,
+		slot.AbsoluteSize.X, slot.AbsoluteSize.Y,
+		vh, vw, scaleX, scaleY,
+		refX, refY, screenX, screenY, localX, localY
+	))
+end
 local function buildRow(parent, label)
 	local on  = false
 	local hov = false
@@ -529,6 +539,9 @@ function Menu:Open()
 			local localX, localY = screenX - slot.AbsolutePosition.X, screenY - slot.AbsolutePosition.Y
 			if colDef.Def.Name == "BeatX" or colDef.Def.Name == "Creator" or colDef.Def.Name == "Cosmetic" or colDef.Def.Name == "Level" then
 				print(string.format('[BeatX][Anim][Open] %s i=%d screenStart=(%.0f,%.0f) localStart=(%.0f,%.0f)', colDef.Def.Name, i, screenX, screenY, localX, localY))
+				if colDef.Def.Name == "BeatX" or colDef.Def.Name == "Creator" or colDef.Def.Name == "Level" then
+					logAnimSpace("Open", colDef.Def.Name, i, catHeight, slot, vw, vh, scaleX, scaleY, refX, refY, screenX, screenY, localX, localY)
+				end
 				container.Position = UDim2.fromOffset(localX, localY)
 				container.Visible = true
 				local delay = (i - 1) * 0.035
@@ -560,6 +573,9 @@ function Menu:Close()
 		local localX, localY = screenX - slot.AbsolutePosition.X, screenY - slot.AbsolutePosition.Y
 		if colDef.Def.Name == "BeatX" or colDef.Def.Name == "Creator" or colDef.Def.Name == "Cosmetic" or colDef.Def.Name == "Level" then
 			print(string.format('[BeatX][Anim][Close] %s i=%d screenExit=(%.0f,%.0f) localExit=(%.0f,%.0f)', colDef.Def.Name, i, screenX, screenY, localX, localY))
+			if colDef.Def.Name == "BeatX" or colDef.Def.Name == "Creator" or colDef.Def.Name == "Level" then
+				logAnimSpace("Close", colDef.Def.Name, i, catHeight, slot, vw, vh, scaleX, scaleY, refX, refY, screenX, screenY, localX, localY)
+			end
 			local delay, duration = (i - 1) * 0.035, 0.23
 			maxDuration = math.max(maxDuration, duration + delay)
 			local tw = TweenService:Create(container, TweenInfo.new(duration, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out, 0, false, delay), { Position = UDim2.fromOffset(localX, localY) })
