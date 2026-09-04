@@ -13,8 +13,8 @@
  Responsible for building one menu row from a declarative item
  definition using exactly three components: Button, Input and
  Dropdown. Supported types: toggle, search, dropdown, button.
- BeatX maps Feature Search to Input, Language to Dropdown, and
- Theme plus Animation Duration to Button.
+ BeatX maps Feature Search to Input and Language plus Theme
+ to Dropdown; toggle and button stay for future categories.
  Runs inside Category.new with a ctx carrying Components plus
  Theme, Localization and menu callbacks.
 ]]

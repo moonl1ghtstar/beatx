@@ -6,7 +6,6 @@ return {
 	BeatX = {
 		Language = "한국어",
 		Theme = "Dark",
-		AnimationDuration = 0.25,
 	},
 	Features = {
 		BeatX = true,

@@ -10,11 +10,11 @@
 
  BeatX - SettingsStore
 
- Responsible for the BeatX namespace settings (Language, Theme,
- AnimationDuration) with validation, persistence and subscriptions.
+ Responsible for the BeatX namespace settings (Language, Theme)
+ with validation, persistence and subscriptions.
  Sanitizes loaded data so corrupt files fall back to defaults.
- Created by Main.Start after Filesystem; Theme, Localization and
- Animation observe it instead of touching files themselves.
+ Created by Main.Start after Filesystem; Theme and Localization
+ observe it instead of touching files themselves.
  Data flow: UI -> SettingsStore -> Filesystem Adapter -> BeatXConfig.json.
 ]]
 
@@ -27,7 +27,6 @@ local NAMESPACE = "BeatX"
 local DEFAULTS = {
 	Language = "한국어",
 	Theme = "Dark",
-	AnimationDuration = 0.25,
 }
 
 -- Returns an independent copy of the default values.
@@ -35,7 +34,6 @@ local function cloneDefaults()
 	return {
 		Language = DEFAULTS.Language,
 		Theme = DEFAULTS.Theme,
-		AnimationDuration = DEFAULTS.AnimationDuration,
 	}
 end
 
@@ -54,11 +52,6 @@ local function sanitizeLoaded(loaded)
 	end
 	if scoped.Theme == "Dark" or scoped.Theme == "Light" or scoped.Theme == "Midnight" then
 		values.Theme = scoped.Theme
-	end
-	if type(scoped.AnimationDuration) == "number" then
-		local v = math.clamp(scoped.AnimationDuration, 0, 1)
-		v = math.floor(v / 0.05 + 0.5) * 0.05
-		values.AnimationDuration = v
 	end
 	return values
 end
@@ -107,7 +100,6 @@ function SettingsStore:Save()
 		[NAMESPACE] = {
 			Language = self._values.Language,
 			Theme = self._values.Theme,
-			AnimationDuration = self._values.AnimationDuration,
 		},
 	}
 	local ok, result = pcall(function()
@@ -126,7 +118,6 @@ function SettingsStore:GetAll()
 	return {
 		Language = self._values.Language,
 		Theme = self._values.Theme,
-		AnimationDuration = self._values.AnimationDuration,
 	}
 end
 
@@ -140,13 +131,6 @@ function SettingsStore:Set(key, value, skipSave)
 	end
 	if key == "Theme" and value ~= "Dark" and value ~= "Light" and value ~= "Midnight" then
 		return false
-	end
-	if key == "AnimationDuration" then
-		if type(value) ~= "number" then
-			return false
-		end
-		value = math.clamp(value, 0, 1)
-		value = math.floor(value / 0.05 + 0.5) * 0.05
 	end
 	if self._values[key] == value then
 		return true

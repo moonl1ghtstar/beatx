@@ -168,7 +168,7 @@ function Main.Start()
 	updateLoading("Loading configuration...", 60)
 	BeatX.Config = loadModule("core/config.lua")
 
-	-- Core systems: Settings -> Theme / Localization / Animation.
+	-- Core systems: Settings -> Theme / Localization.
 	-- Optional modules stay silent on failure so the legacy menu still loads.
 	local function tryLoad(path)
 		local ok, mod = pcall(loadModule, path)
@@ -193,7 +193,6 @@ function Main.Start()
 		BeatX.Config.BeatX = BeatX.Config.BeatX or {
 			Language = "한국어",
 			Theme = "Dark",
-			AnimationDuration = 0.25,
 		}
 	end
 	local ThemeMod = tryLoad("core/theme.lua")
@@ -203,10 +202,6 @@ function Main.Start()
 	local LocalizationMod = tryLoad("core/localization.lua")
 	if LocalizationMod then
 		BeatX.Localization = LocalizationMod.new(BeatX.Settings)
-	end
-	local AnimationMod = tryLoad("core/animation.lua")
-	if AnimationMod then
-		BeatX.Animation = AnimationMod.new(BeatX.Settings)
 	end
 	-- Preload UI modules. menu.lua reaches them only via BeatX.Modules.
 	BeatX.Modules = BeatX.Modules or {}
@@ -282,7 +277,6 @@ function Main.Start()
 	if BeatX.Modules.Window then
 		pcall(function()
 			BeatX.Window = BeatX.Modules.Window.Attach(BeatX.Menu, {
-				Animation = BeatX.Animation,
 				Theme = BeatX.Theme,
 				Localization = BeatX.Localization,
 			})
@@ -290,7 +284,7 @@ function Main.Start()
 	end
 	-- Keep the Config.BeatX view in sync with Settings changes.
 	if BeatX.Settings and type(BeatX.Settings.Subscribe) == "function" then
-		for _, key in ipairs({ "Language", "Theme", "AnimationDuration" }) do
+		for _, key in ipairs({ "Language", "Theme" }) do
 			BeatX.Settings:Subscribe(key, function(value)
 				if BeatX.Config.BeatX then
 					BeatX.Config.BeatX[key] = value
@@ -331,7 +325,6 @@ function BeatX:Destroy()
 	self.SearchIndex = nil
 	self.Theme = nil
 	self.Localization = nil
-	self.Animation = nil
 	self.Settings = nil
 	self.Modules = nil
 	self.Menu = nil

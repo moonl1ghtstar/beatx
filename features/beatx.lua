@@ -1,6 +1,6 @@
 -- Core/UI-application category. First declarative CategoryDef.
--- The BeatX category holds exactly 4 items and nothing else.
--- Feature Search / Language Settings / Theme / Animation Duration.
+-- The BeatX category holds exactly 3 items and nothing else.
+-- Feature Search / Language Settings / Theme.
 local CATEGORY_DEF = {
 	Name = "BeatX",
 	Items = {
@@ -16,19 +16,11 @@ local CATEGORY_DEF = {
 			default = "한국어",
 		},
 		{
-			type = "button",
+			type = "dropdown",
 			key = "theme",
 			labelKey = "theme",
+			options = { "Dark" },
 			default = "Dark",
-		},
-		{
-			type = "button",
-			key = "animation_duration",
-			labelKey = "animation_duration",
-			default = 0.25,
-			min = 0,
-			max = 1,
-			step = 0.05,
 		},
 	},
 }
@@ -37,7 +29,7 @@ return {
 	Name = "BeatX",
 	Category = "BeatX",
 	Description = "BeatX core settings",
-	Keywords = { "search", "language", "theme", "animation" },
+	Keywords = { "search", "language", "theme" },
 	Enabled = false,
 	CategoryDef = CATEGORY_DEF,
 

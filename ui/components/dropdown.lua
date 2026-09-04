@@ -11,9 +11,11 @@
  BeatX - Component: Dropdown
 
  Responsible for settings picked from multiple values, starting
- with Language Settings. Closed state matches the menu row look
- with label and current value. Opening renders an overlay panel
- under ctx.OverlayParent so Canvas autosize stays unaffected.
+ with Language Settings and Theme. Closed state matches the menu
+ row look with label and current value and no accent bar.
+ Opening renders an option-only overlay panel anchored directly
+ under its own row inside ctx.OverlayParent, so it never appears
+ at an arbitrary screen position and Canvas autosize is unaffected.
  Outside click closes without choosing. Generic enough for
  future categories. Destroyed with its parent row.
 ]]
@@ -99,18 +101,9 @@ function Dropdown.Create(parent, props, ctx)
 	right.TextXAlignment = Enum.TextXAlignment.Right
 	right.TextYAlignment = Enum.TextYAlignment.Center
 	right.TextColor3 = fg()
-	right.Size = UDim2.new(0.45, -12, 1, 0)
+	right.Size = UDim2.new(0.45, -8, 1, 0)
 	right.Position = UDim2.new(0.55, 0, 0, 0)
 	right.Parent = root
-
-	local bar = Instance.new("Frame")
-	bar.Name = "AccentBar"
-	bar.BorderSizePixel = 0
-	bar.BackgroundColor3 = Color3.fromRGB(110, 110, 110)
-	bar.Size = UDim2.new(0, 2, 1, -4)
-	bar.Position = UDim2.new(1, -2, 0.5, 0)
-	bar.AnchorPoint = Vector2.new(1, 0.5)
-	bar.Parent = root
 
 	local handle = {}
 
@@ -133,7 +126,7 @@ function Dropdown.Create(parent, props, ctx)
 		end
 	end
 
-	-- Opens the overlay option list above the menu canvas.
+	-- Opens the option list anchored directly under the row.
 	local function openPopup()
 		if opened or destroyed then
 			return
@@ -143,6 +136,13 @@ function Dropdown.Create(parent, props, ctx)
 			return
 		end
 		opened = true
+
+		local anchorX, anchorY, anchorW = nil, nil, 140
+		pcall(function()
+			anchorX = root.AbsolutePosition.X
+			anchorY = root.AbsolutePosition.Y + root.AbsoluteSize.Y + 2
+			anchorW = root.AbsoluteSize.X
+		end)
 
 		local blocker = Instance.new("TextButton")
 		blocker.Name = "BeatXDropdownBlocker"
@@ -159,20 +159,20 @@ function Dropdown.Create(parent, props, ctx)
 		panel.BorderSizePixel = 1
 		panel.BorderColor3 = border()
 		panel.BackgroundColor3 = surface()
-		panel.Size = UDim2.fromOffset(140, #options * 24 + 8)
-		panel.ZIndex = 901
-		if type(props.Position) == "UDim2" then
+		if type(anchorX) == "number" then
+			panel.Position = UDim2.fromOffset(anchorX, anchorY)
+			panel.Size = UDim2.fromOffset(math.max(anchorW, 100), #options * 22)
+		elseif type(props.Position) == "UDim2" then
 			panel.Position = props.Position
+			panel.Size = UDim2.fromOffset(140, #options * 22)
 		else
 			panel.AnchorPoint = Vector2.new(0.5, 0)
 			panel.Position = UDim2.fromScale(0.5, 0.2)
+			panel.Size = UDim2.fromOffset(140, #options * 22)
 		end
+		panel.ZIndex = 901
 		panel.Parent = layer
 		table.insert(popupObjs, panel)
-
-		local corner = Instance.new("UICorner")
-		corner.CornerRadius = UDim.new(0, 6)
-		corner.Parent = panel
 
 		local layout = Instance.new("UIListLayout")
 		layout.FillDirection = Enum.FillDirection.Vertical
@@ -180,24 +180,25 @@ function Dropdown.Create(parent, props, ctx)
 		layout.SortOrder = Enum.SortOrder.LayoutOrder
 		layout.Parent = panel
 
-		local pad = Instance.new("UIPadding")
-		pad.PaddingTop = UDim.new(0, 4)
-		pad.PaddingBottom = UDim.new(0, 4)
-		pad.Parent = panel
-
 		for i, opt in ipairs(options) do
 			local item = Instance.new("TextButton")
 			item.AutoButtonColor = false
 			item.BackgroundTransparency = 1
 			item.BorderSizePixel = 0
-			item.Font = Enum.Font.GothamMedium
+			item.Font = Enum.Font.Gotham
 			item.TextSize = 14
 			item.Text = tostring(opt)
 			item.LayoutOrder = i
-			item.Size = UDim2.new(1, 0, 0, 24)
+			item.Size = UDim2.new(1, 0, 0, 22)
 			item.ZIndex = 902
 			item.TextColor3 = (opt == selected) and accent() or fg()
 			item.Parent = panel
+			table.insert(popupConns, item.MouseEnter:Connect(function()
+				item.TextColor3 = accent()
+			end))
+			table.insert(popupConns, item.MouseLeave:Connect(function()
+				item.TextColor3 = (opt == selected) and accent() or fg()
+			end))
 			table.insert(popupConns, item.MouseButton1Click:Connect(function()
 				selected = opt
 				right.Text = tostring(opt)

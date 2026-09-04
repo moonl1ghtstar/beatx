@@ -11,15 +11,16 @@
  BeatX - Component: Input
 
  Responsible for the Roblox TextBox search row fixed at ROW_H 22.
+ Text entry only; carries no toggle or state decoration.
  Supports placeholder text, change callbacks, focus and clear.
  Never steals focus on its own, so the existing GetFocusedTextBox
  and RightShift guard in main.lua keeps working. Feature Search
- is its first use. Destroyed with its parent row.
+ is its use. Destroyed with its parent row.
 ]]
 
 local Input = {}
 
--- Builds a full-width input row with accent bar.
+-- Builds a full-width input row showing only placeholder or text.
 function Input.Create(parent, props, ctx)
 	props = props or {}
 	local theme = ctx and ctx.Theme or nil
@@ -33,13 +34,6 @@ function Input.Create(parent, props, ctx)
 		else
 			placeholderText = "Search..."
 		end
-	end
-
-	local function accent()
-		if theme and type(theme.Get) == "function" then
-			return theme:Get("Accent")
-		end
-		return Color3.fromRGB(232, 56, 102)
 	end
 
 	local root = Instance.new("Frame")
@@ -58,7 +52,7 @@ function Input.Create(parent, props, ctx)
 	box.TextXAlignment = Enum.TextXAlignment.Left
 	box.TextYAlignment = Enum.TextYAlignment.Center
 	box.ClearTextOnFocus = false
-	box.Size = UDim2.new(1, -12, 1, 0)
+	box.Size = UDim2.new(1, -8, 1, 0)
 	box.Position = UDim2.fromOffset(8, 0)
 	if theme and type(theme.Get) == "function" then
 		box.TextColor3 = theme:Get("Text")
@@ -69,33 +63,13 @@ function Input.Create(parent, props, ctx)
 	end
 	box.Parent = root
 
-	local bar = Instance.new("Frame")
-	bar.Name = "AccentBar"
-	bar.BorderSizePixel = 0
-	bar.BackgroundColor3 = Color3.fromRGB(110, 110, 110)
-	bar.Size = UDim2.new(0, 2, 1, -4)
-	bar.Position = UDim2.new(1, -2, 0.5, 0)
-	bar.AnchorPoint = Vector2.new(1, 0.5)
-	bar.Parent = root
-
 	local conns = {}
-	local function paint()
-		if box:IsFocused() or box.Text ~= "" then
-			bar.BackgroundColor3 = accent()
-		else
-			bar.BackgroundColor3 = Color3.fromRGB(110, 110, 110)
-		end
-	end
-
 	table.insert(conns, box:GetPropertyChangedSignal("Text"):Connect(function()
-		paint()
 		if type(props.OnChanged) == "function" then
 			props.OnChanged(box.Text)
 		end
 	end))
-	table.insert(conns, box.Focused:Connect(paint))
 	table.insert(conns, box.FocusLost:Connect(function(enterPressed)
-		paint()
 		if enterPressed and type(props.OnEnter) == "function" then
 			props.OnEnter(box.Text)
 		end
@@ -106,7 +80,6 @@ function Input.Create(parent, props, ctx)
 		table.insert(unsubs, theme:Subscribe(function()
 			box.TextColor3 = theme:Get("Text")
 			box.PlaceholderColor3 = theme:Get("SecondaryText")
-			paint()
 		end))
 	end
 	if localization and type(localization.Subscribe) == "function" then
@@ -136,7 +109,6 @@ function Input.Create(parent, props, ctx)
 			pcall(function()
 				box:ReleaseFocus()
 			end)
-			paint()
 		end,
 		Destroy = function()
 			for _, c in ipairs(conns) do

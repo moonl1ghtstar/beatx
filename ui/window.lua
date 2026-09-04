@@ -10,46 +10,30 @@
 
  BeatX - Window
 
- Responsible for the whole menu container: Open, Close,
- animation and theme propagation. Thin wrapper around the
- existing Menu instance so width, collapse, drag and
- RightShift behavior stay untouched.
+ Responsible for the whole menu container: instant Open, Close
+ and theme propagation. Thin wrapper around the existing Menu
+ instance so width, collapse, drag and RightShift behavior stay
+ untouched. RightShift input handling and the GetFocusedTextBox
+ guard live in main.lua and are preserved as-is.
  Attached by Main.Start after menu creation with the central
- Animation, Theme and Localization systems.
+ Theme and Localization systems. No animation is used.
 ]]
 
 local Window = {}
 Window.__index = Window
 
-local MENU_TOP_Y = 5
-
 -- Attaches window behavior to an existing menu instance.
 function Window.Attach(menu, ctx)
 	assert(menu, "menu missing")
 	ctx = ctx or {}
-	local animation = ctx.Animation
 	local theme = ctx.Theme
 	local localization = ctx.Localization
-
-	local tweenService
-	pcall(function()
-		tweenService = game:GetService("TweenService")
-	end)
 
 	local self = setmetatable({
 		Menu = menu,
 		_ctx = ctx,
-		_tweens = {},
 		_destroyed = false,
 	}, Window)
-
-	local function stopTweens()
-		for _, tw in ipairs(self._tweens) do
-			pcall(function() tw:Cancel() end)
-		end
-		self._tweens = {}
-	end
-	self._stopTweens = stopTweens
 
 	local themeUnsub
 	if theme and type(theme.Subscribe) == "function" then
@@ -67,11 +51,8 @@ function Window.Attach(menu, ctx)
 	end
 	self._locUnsub = locUnsub
 
-	-- Returns the active animation duration, defaulting to instant.
+	-- Returns zero: Open/Close never animate.
 	function self:GetDuration()
-		if animation and type(animation.GetDuration) == "function" then
-			return animation:GetDuration()
-		end
 		return 0
 	end
 
@@ -96,7 +77,7 @@ function Window.Attach(menu, ctx)
 		end
 	end
 
-	-- Shows the menu with a slide-in of the active duration.
+	-- Shows the menu immediately.
 	function self:Open()
 		if self._destroyed then
 			return
@@ -104,32 +85,10 @@ function Window.Attach(menu, ctx)
 		if self.Menu.Visible then
 			return
 		end
-		stopTweens()
-		local duration = self:GetDuration()
-		if duration <= 0.0001 or not tweenService then
-			self.Menu:Open()
-			return
-		end
 		self.Menu:Open()
-		local canvas = self.Menu.Canvas
-		if canvas then
-			local targetY = MENU_TOP_Y
-			pcall(function()
-				local guiW = self.Menu.Gui and self.Menu.Gui.AbsoluteSize.X or 0
-				canvas.AnchorPoint = Vector2.new(0.5, 0)
-				canvas.Position = UDim2.fromOffset(guiW * 0.5, targetY - 12)
-				local tw = tweenService:Create(
-					canvas,
-					TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-					{ Position = UDim2.fromOffset(guiW * 0.5, targetY) }
-				)
-				table.insert(self._tweens, tw)
-				tw:Play()
-			end)
-		end
 	end
 
-	-- Hides the menu after a slide-out of the active duration.
+	-- Hides the menu immediately.
 	function self:Close()
 		if self._destroyed then
 			return
@@ -137,35 +96,7 @@ function Window.Attach(menu, ctx)
 		if not self.Menu.Visible then
 			return
 		end
-		stopTweens()
-		local duration = self:GetDuration()
-		if duration <= 0.0001 or not tweenService then
-			self.Menu:Close()
-			return
-		end
-		local canvas = self.Menu.Canvas
-		if canvas then
-			local ok = pcall(function()
-				local tw = tweenService:Create(
-					canvas,
-					TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.In),
-					{ Position = canvas.Position - UDim2.fromOffset(0, 12) }
-				)
-				table.insert(self._tweens, tw)
-				tw:Play()
-				tw.Completed:Connect(function()
-					if self._destroyed then
-						return
-					end
-					self.Menu:Close()
-				end)
-			end)
-			if not ok then
-				self.Menu:Close()
-			end
-		else
-			self.Menu:Close()
-		end
+		self.Menu:Close()
 	end
 
 	-- Toggles visibility.
@@ -177,13 +108,12 @@ function Window.Attach(menu, ctx)
 		end
 	end
 
-	-- Stops tweens and releases subscriptions. Menu itself stays owned by Main.
+	-- Releases subscriptions. Menu itself stays owned by Main.
 	function self:Destroy()
 		if self._destroyed then
 			return
 		end
 		self._destroyed = true
-		stopTweens()
 		if self._themeUnsub then
 			pcall(self._themeUnsub)
 		end

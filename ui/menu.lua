@@ -366,17 +366,15 @@ local function getBeatXDef(BeatX)
 			return feature.CategoryDef
 		end
 	end
-		-- Fallback mirrors the 4 items of features/beatx.lua.
+		-- Fallback mirrors the 3 items of features/beatx.lua.
 	return {
 		Name = "BeatX",
 		Items = {
 			{ type = "search", key = "feature_search" },
 			{ type = "dropdown", key = "language", labelKey = "language_settings",
 				options = { "한국어", "English" }, default = "한국어" },
-			{ type = "button", key = "theme", labelKey = "theme",
-				default = "Dark" },
-			{ type = "button", key = "animation_duration", labelKey = "animation_duration",
-				default = 0.25, min = 0, max = 1, step = 0.05 },
+			{ type = "dropdown", key = "theme", labelKey = "theme",
+				options = { "Dark" }, default = "Dark" },
 		},
 	}
 end
@@ -528,61 +526,6 @@ function Menu.new(BeatX)
 		end
 	end
 
-	local function focusFirstMatch(query)
-		local q = tostring(query or ""):gsub("^%s+", ""):gsub("%s+$", "")
-		if q == "" then
-			return
-		end
-		-- Priority 1: focus the first SearchIndex result category.
-		local targetCategory = nil
-		if BeatX and BeatX.SearchIndex and type(BeatX.SearchIndex.Search) == "function" then
-			local ok, results = pcall(function()
-				return BeatX.SearchIndex:Search(q)
-			end)
-			if ok and type(results) == "table" and results[1] then
-				targetCategory = results[1].Category
-			end
-		end
-		-- Priority 2: direct row label match.
-		if not targetCategory then
-			local lq = string.lower(q)
-			for _, col in ipairs(columns) do
-				if not col.IsBeatX and col.Content and col.Def then
-					for _, child in ipairs(col.Content:GetChildren()) do
-						if child:IsA("TextButton") then
-							local lab = child:FindFirstChildOfClass("TextLabel")
-							if lab and string.find(string.lower(lab.Text), lq, 1, true) then
-								targetCategory = col.Def.Name
-								break
-							end
-						end
-					end
-				end
-				if targetCategory then
-					break
-				end
-			end
-		end
-		if not targetCategory then
-			return
-		end
-		for _, col in ipairs(columns) do
-			if col.Def and col.Def.Name == targetCategory and col.Header then
-				local hdr = col.Header
-				local orig = hdr.BackgroundColor3
-				pcall(function()
-					hdr.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-				end)
-				task.delay(0.35, function()
-					pcall(function()
-						hdr.BackgroundColor3 = orig
-					end)
-				end)
-				break
-			end
-		end
-	end
-
 	local function buildBeatXColumn()
 		local mods = BeatX and BeatX.Modules or nil
 		local def = getBeatXDef(BeatX)
@@ -596,7 +539,6 @@ function Menu.new(BeatX)
 		local settings = BeatX.Settings
 		local theme = BeatX.Theme
 		local localization = BeatX.Localization
-		local animation = BeatX.Animation
 		local function currentValue(key, fallback)
 			if settings and type(settings.Get) == "function" then
 				local v = settings:Get(key)
@@ -610,12 +552,9 @@ function Menu.new(BeatX)
 			if key == "Theme" and theme and type(theme.CurrentName) == "function" then
 				return theme:CurrentName()
 			end
-			if key == "AnimationDuration" and animation and type(animation.GetDuration) == "function" then
-				return animation:GetDuration()
-			end
 			return fallback
 		end
-		-- Injects live values into the CategoryDef (still 4 items).
+		-- Injects live values and select handlers into the CategoryDef (3 items).
 		local resolved = { Name = def.Name, Items = {} }
 		for _, item in ipairs(def.Items) do
 			local copy = {}
@@ -624,11 +563,22 @@ function Menu.new(BeatX)
 			end
 			if copy.key == "language" then
 				copy.value = currentValue("Language", copy.default)
+				copy.onSelect = function(opt)
+					if localization and type(localization.SetLanguage) == "function" then
+						localization:SetLanguage(opt)
+					elseif settings and type(settings.Set) == "function" then
+						settings:Set("Language", opt)
+					end
+				end
 			elseif copy.key == "theme" then
 				copy.value = currentValue("Theme", copy.default)
-			elseif copy.key == "animation_duration" then
-				local v = currentValue("AnimationDuration", copy.default)
-				copy.value = string.format("%.2f", tonumber(v) or 0.25)
+				copy.onSelect = function(opt)
+					if theme and type(theme.Set) == "function" then
+						theme:Set(opt)
+					elseif settings and type(settings.Set) == "function" then
+						settings:Set("Theme", opt)
+					end
+				end
 			end
 			table.insert(resolved.Items, copy)
 		end
@@ -636,63 +586,10 @@ function Menu.new(BeatX)
 			Theme = theme,
 			Localization = localization,
 			Settings = settings,
-			Animation = animation,
 			RowFactory = mods.RowFactory,
 			Components = mods.Components,
 			OverlayParent = gui,
 			OnSearchQuery = applySearchFilter,
-			OnSearchEnter = focusFirstMatch,
-			OnLanguageSelect = function(opt)
-				if localization and type(localization.SetLanguage) == "function" then
-					localization:SetLanguage(opt)
-				elseif settings and type(settings.Set) == "function" then
-					settings:Set("Language", opt)
-				end
-			end,
-			OnBeatXAction = function(actionKey)
-				if actionKey == "theme" then
-					local nextName = nil
-					if theme and type(theme.Cycle) == "function" then
-						theme:Cycle()
-						nextName = theme:CurrentName()
-					elseif settings and type(settings.Get) == "function" then
-						local order = { "Dark", "Light", "Midnight" }
-						local cur = settings:Get("Theme")
-						for i, n in ipairs(order) do
-							if n == cur then
-								nextName = order[(i % #order) + 1]
-								break
-							end
-						end
-						nextName = nextName or order[1]
-						settings:Set("Theme", nextName)
-					end
-					local themeRow = beatXRows["theme"]
-					if nextName and themeRow and type(themeRow.SetValue) == "function" then
-						themeRow:SetValue(nextName)
-					end
-				elseif actionKey == "animation_duration" then
-					local step = 0.05
-					local cur = currentValue("AnimationDuration", 0.25)
-					if type(cur) == "string" then
-						cur = tonumber(cur) or 0.25
-					end
-					local next = cur + step
-					if next > 1.0001 then
-						next = 0
-					end
-					if animation and type(animation.SetDuration) == "function" then
-						animation:SetDuration(next)
-						next = animation:GetDuration()
-					elseif settings and type(settings.Set) == "function" then
-						settings:Set("AnimationDuration", next)
-					end
-					local animRow = beatXRows["animation_duration"]
-					if animRow and type(animRow.SetValue) == "function" then
-						animRow:SetValue(string.format("%.2f", next))
-					end
-				end
-			end,
 		}
 		local category = mods.Category.new(resolved, topRow, ctx, {
 			COL_W = COL_W,
@@ -718,12 +615,6 @@ function Menu.new(BeatX)
 				local r = beatXRows["theme"]
 				if r and type(r.SetValue) == "function" then
 					r:SetValue(v)
-				end
-			end))
-			trackUnsub(settings:Subscribe("AnimationDuration", function(v)
-				local r = beatXRows["animation_duration"]
-				if r and type(r.SetValue) == "function" then
-					r:SetValue(string.format("%.2f", tonumber(v) or 0))
 				end
 			end))
 		end

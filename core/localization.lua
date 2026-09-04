@@ -11,8 +11,7 @@
  BeatX - Localization (central)
 
  Responsible for UI strings keyed by feature_search,
- language_settings, theme, animation_duration and
- search_placeholder. Supported languages: Korean and English.
+ language_settings, theme and search_placeholder. Supported languages: Korean and English.
  Components fetch text via Get instead of hardcoding strings.
  Created by Main.Start after SettingsStore; SetLanguage
  persists the choice and notifies subscribers so the menu
@@ -27,14 +26,12 @@ local STRINGS = {
 		feature_search = "Feature Search",
 		language_settings = "Language",
 		theme = "Theme",
-		animation_duration = "Anim",
 		search_placeholder = "Search...",
 	},
 	English = {
 		feature_search = "Feature Search",
 		language_settings = "Language",
 		theme = "Theme",
-		animation_duration = "Anim",
 		search_placeholder = "Search...",
 	},
 }
