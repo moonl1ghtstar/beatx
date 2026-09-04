@@ -139,12 +139,13 @@ function Dropdown.Create(parent, props, ctx)
 
 		-- Anchor to the clicked row: panel X = row X + row width,
 		-- panel Y = row Y. Read at click time so menu moves stay correct.
-		-- The overlay layer is a ScreenGui with IgnoreGuiInset, so the
-		-- row AbsolutePosition maps 1:1 to panel offsets.
+		-- The row and the panel live in different coordinate spaces, so
+		-- the panel parent origin is subtracted from both axes.
 		local anchorX, anchorY = nil, nil
 		pcall(function()
-			anchorX = root.AbsolutePosition.X + root.AbsoluteSize.X
-			anchorY = root.AbsolutePosition.Y
+			local parentPos = layer.AbsolutePosition
+			anchorX = root.AbsolutePosition.X + root.AbsoluteSize.X - parentPos.X
+			anchorY = root.AbsolutePosition.Y - parentPos.Y
 		end)
 
 		local blocker = Instance.new("TextButton")
