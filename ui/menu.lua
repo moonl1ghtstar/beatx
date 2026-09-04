@@ -109,6 +109,12 @@ local CATS = {
 
 local _instance = nil
 
+-- Hook wired per menu incarnation. Legacy rows close BeatX dropdown
+-- popups through it while keeping their own toggle behavior.
+local menuHooks = {
+	closeBeatXPopups = function() end,
+}
+
 -- ── Helpers ────────────────────────────────────────────────────────────────────
 local function getGuiParent()
 	local ok, cg = pcall(function() return game:GetService("CoreGui") end)
@@ -198,7 +204,11 @@ local function buildRow(parent, label)
 		end
 	end
 
-	row.MouseButton1Click:Connect(function() on = not on; refresh() end)
+	row.MouseButton1Click:Connect(function()
+		on = not on
+		refresh()
+		menuHooks.closeBeatXPopups()
+	end)
 	row.MouseEnter:Connect(function()        hov = true;  if not on then refresh() end end)
 	row.MouseLeave:Connect(function()        hov = false; if not on then refresh() end end)
 
@@ -482,6 +492,7 @@ function Menu.new(BeatX)
 			end
 		end
 	end
+	menuHooks.closeBeatXPopups = closePopup
 
 	-- Search filter dims toggle rows of the 7 legacy columns.
 	-- BeatX setting rows are never filtered.
@@ -755,6 +766,7 @@ function Menu:Destroy()
 	if self.Destroyed then return end
 	self.Destroyed = true
 	self:_stopAnims()
+	menuHooks.closeBeatXPopups = function() end
 	if self._closePopup then
 		pcall(self._closePopup)
 	end

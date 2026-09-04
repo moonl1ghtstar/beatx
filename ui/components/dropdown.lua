@@ -175,7 +175,11 @@ function Dropdown.Create(parent, props, ctx)
 		blocker.BackgroundTransparency = 1
 		blocker.Text = ""
 		blocker.Size = UDim2.fromScale(1, 1)
-		blocker.ZIndex = 900
+		-- Below the menu rows so underlying rows keep receiving their
+		-- presses (switching happens in the row handler via
+		-- ActiveDropdown). Still above the menu InputBlocker by creation
+		-- order, so all other outside presses close the popup.
+		blocker.ZIndex = 0
 		blocker.Parent = layer
 		table.insert(popupObjs, blocker)
 
@@ -237,44 +241,8 @@ function Dropdown.Create(parent, props, ctx)
 				end
 			end))
 		end
-		table.insert(popupConns, blocker.MouseButton1Down:Connect(function(x, y)
-			-- MouseButton1Down carries the click position; MouseButton1Click
-			-- carries none, so a Click-based hit test always fell back to
-			-- GetMouseLocation, whose space differs from AbsolutePosition
-			-- by the top inset and missed the row by ~2 rows.
-			-- The fullscreen blocker owns this press, so the row beneath
-			-- never sees it. Hit-test sibling dropdown rows here: a press
-			-- on another dropdown switches to it from the same press
-			-- instead of requiring a second click.
-			local target = nil
-			if ctx and type(ctx.Dropdowns) == "table" then
-				if x == nil or y == nil then
-					pcall(function()
-						local m = game:GetService("UserInputService"):GetMouseLocation()
-						x, y = m.X, m.Y
-					end)
-				end
-				if type(x) == "number" and type(y) == "number" then
-					for _, d in ipairs(ctx.Dropdowns) do
-						if type(d) == "table" and d.Root ~= nil and d.Root ~= root then
-							local ok, hit = pcall(function()
-								local p = d.Root.AbsolutePosition
-								local s = d.Root.AbsoluteSize
-								return x >= p.X and x <= p.X + s.X
-									and y >= p.Y and y <= p.Y + s.Y
-							end)
-							if ok and hit then
-								target = d
-								break
-							end
-						end
-					end
-				end
-			end
+		table.insert(popupConns, blocker.MouseButton1Click:Connect(function()
 			closePopup(true)
-			if target and type(target.OpenFn) == "function" then
-				pcall(target.OpenFn)
-			end
 		end))
 	end
 
@@ -328,27 +296,9 @@ function Dropdown.Create(parent, props, ctx)
 	handle.IsOpen = function()
 		return opened
 	end
-	handle._registryEntry = { Root = root }
-	handle._registryEntry.OpenFn = function()
-		if not opened and not destroyed then
-			openPopup()
-		end
-	end
-	if ctx then
-		ctx.Dropdowns = ctx.Dropdowns or {}
-		table.insert(ctx.Dropdowns, handle._registryEntry)
-	end
 	handle.Destroy = function()
 		destroyed = true
 		closePopup(false)
-		if ctx and type(ctx.Dropdowns) == "table" then
-			for i, d in ipairs(ctx.Dropdowns) do
-				if d == handle._registryEntry then
-					table.remove(ctx.Dropdowns, i)
-					break
-				end
-			end
-		end
 		if ctx and ctx.ActiveDropdown == handle then
 			ctx.ActiveDropdown = nil
 		end
