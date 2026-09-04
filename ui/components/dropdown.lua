@@ -137,16 +137,25 @@ function Dropdown.Create(parent, props, ctx)
 		end
 		opened = true
 
-		-- Anchor to the clicked row: panel X = row X + row width,
-		-- panel Y = row Y. Read at click time so menu moves stay correct.
-		-- The row and the panel live in different coordinate spaces, so
-		-- the panel parent origin is subtracted from both axes.
-		local anchorX, anchorY = nil, nil
-		pcall(function()
-			local parentPos = layer.AbsolutePosition
-			anchorX = root.AbsolutePosition.X + root.AbsoluteSize.X - parentPos.X
+	-- Anchor to the clicked row: panel X = row X + row width,
+	-- panel Y = row Y. Read at click time so menu moves stay correct.
+	-- Y is converted through the menu Canvas, a GuiObject sharing the
+	-- row's own coordinate space: canvas offset plus the row position
+	-- relative to the canvas. X keeps its verified behavior.
+	local anchorX, anchorY = nil, nil
+	pcall(function()
+		local parentPos = layer.AbsolutePosition
+		anchorX = root.AbsolutePosition.X + root.AbsoluteSize.X - parentPos.X
+		local canvas = ctx and ctx.Canvas or nil
+		if canvas
+			and type(canvas.AbsolutePosition) == "Vector2"
+			and type(canvas.Position) == "UDim2" then
+			anchorY = canvas.Position.Y.Offset
+				+ (root.AbsolutePosition.Y - canvas.AbsolutePosition.Y)
+		else
 			anchorY = root.AbsolutePosition.Y - parentPos.Y
-		end)
+		end
+	end)
 
 		local blocker = Instance.new("TextButton")
 		blocker.Name = "BeatXDropdownBlocker"

@@ -589,6 +589,7 @@ function Menu.new(BeatX)
 			RowFactory = mods.RowFactory,
 			Components = mods.Components,
 			OverlayParent = gui,
+			Canvas = canvas,
 			OnSearchQuery = applySearchFilter,
 		}
 		local category = mods.Category.new(resolved, topRow, ctx, {

@@ -4,7 +4,7 @@ return {
 		Theme = "Dark",
 	},
 	BeatX = {
-		Language = "한국어",
+		Language = "English",
 		Theme = "Dark",
 	},
 	Features = {
