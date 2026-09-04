@@ -237,10 +237,14 @@ function Dropdown.Create(parent, props, ctx)
 				end
 			end))
 		end
-		table.insert(popupConns, blocker.MouseButton1Click:Connect(function(x, y)
-			-- The fullscreen blocker owns this click, so the row beneath
-			-- never sees it. Hit-test sibling dropdown rows here: a click
-			-- on another dropdown switches to it from the same click
+		table.insert(popupConns, blocker.MouseButton1Down:Connect(function(x, y)
+			-- MouseButton1Down carries the click position; MouseButton1Click
+			-- carries none, so a Click-based hit test always fell back to
+			-- GetMouseLocation, whose space differs from AbsolutePosition
+			-- by the top inset and missed the row by ~2 rows.
+			-- The fullscreen blocker owns this press, so the row beneath
+			-- never sees it. Hit-test sibling dropdown rows here: a press
+			-- on another dropdown switches to it from the same press
 			-- instead of requiring a second click.
 			local target = nil
 			if ctx and type(ctx.Dropdowns) == "table" then
