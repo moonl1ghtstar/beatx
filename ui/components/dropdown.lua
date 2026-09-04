@@ -13,8 +13,8 @@
  Responsible for settings picked from multiple values, starting
  with Language Settings and Theme. Closed state matches the menu
  row look with label and current value and no accent bar.
- Opening renders an option-only overlay panel anchored directly
- under its own row inside ctx.OverlayParent, so it never appears
+ Opening renders an option-only overlay panel immediately right
+ of its own row, top-aligned, inside ctx.OverlayParent, so it never appears
  at an arbitrary screen position and Canvas autosize is unaffected.
  Outside click closes without choosing. Generic enough for
  future categories. Destroyed with its parent row.
@@ -126,7 +126,7 @@ function Dropdown.Create(parent, props, ctx)
 		end
 	end
 
-	-- Opens the option list anchored directly under the row.
+	-- Opens the option list immediately right of the row, top-aligned.
 	local function openPopup()
 		if opened or destroyed then
 			return
@@ -137,11 +137,14 @@ function Dropdown.Create(parent, props, ctx)
 		end
 		opened = true
 
-		local anchorX, anchorY, anchorW = nil, nil, 140
+		-- Anchor to the clicked row: panel X = row X + row width,
+		-- panel Y = row Y. Read at click time so menu moves stay correct.
+		-- The overlay layer is a ScreenGui with IgnoreGuiInset, so the
+		-- row AbsolutePosition maps 1:1 to panel offsets.
+		local anchorX, anchorY = nil, nil
 		pcall(function()
-			anchorX = root.AbsolutePosition.X
-			anchorY = root.AbsolutePosition.Y + root.AbsoluteSize.Y + 2
-			anchorW = root.AbsoluteSize.X
+			anchorX = root.AbsolutePosition.X + root.AbsoluteSize.X
+			anchorY = root.AbsolutePosition.Y
 		end)
 
 		local blocker = Instance.new("TextButton")
@@ -161,7 +164,7 @@ function Dropdown.Create(parent, props, ctx)
 		panel.BackgroundColor3 = surface()
 		if type(anchorX) == "number" then
 			panel.Position = UDim2.fromOffset(anchorX, anchorY)
-			panel.Size = UDim2.fromOffset(math.max(anchorW, 100), #options * 22)
+			panel.Size = UDim2.fromOffset(140, #options * 22)
 		elseif type(props.Position) == "UDim2" then
 			panel.Position = props.Position
 			panel.Size = UDim2.fromOffset(140, #options * 22)
