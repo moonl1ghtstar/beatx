@@ -1,5 +1,8 @@
 return {
 	Name = "Creator",
+	Category = "Creator",
+	Description = "Creator tools",
+	Keywords = { "creator" },
 	Enabled = false,
 
 	Init = function(self, BeatX)

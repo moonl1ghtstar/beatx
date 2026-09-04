@@ -110,6 +110,13 @@ local function toggleMenu()
 		warn("[BeatX] Right Shift menu toggle unavailable: BeatXMenu has not been created.")
 		return
 	end
+	-- Animated toggle when Window is attached, legacy instant toggle otherwise.
+	if BeatX.Window and type(BeatX.Window.Toggle) == "function" then
+		print(string.format('[BeatX][RightShift] Toggle requested; visibleBefore=%s', tostring(BeatXMenu.Visible)))
+		BeatX.Window:Toggle()
+		print(string.format('[BeatX][RightShift] Toggle completed; visibleAfter=%s', tostring(BeatXMenu.Visible)))
+		return
+	end
 	print(string.format('[BeatX][RightShift] Toggle requested; visibleBefore=%s', tostring(BeatXMenu.Visible)))
 	BeatXMenu:Toggle()
 	print(string.format('[BeatX][RightShift] Toggle completed; visibleAfter=%s', tostring(BeatXMenu.Visible)))
@@ -160,6 +167,59 @@ function Main.Start()
 
 	updateLoading("Loading configuration...", 60)
 	BeatX.Config = loadModule("core/config.lua")
+
+	-- Core systems: Settings -> Theme / Localization / Animation.
+	-- Optional modules stay silent on failure so the legacy menu still loads.
+	local function tryLoad(path)
+		local ok, mod = pcall(loadModule, path)
+		if ok then
+			return mod
+		end
+		warn("[BeatX] optional module unavailable: " .. path)
+		return nil
+	end
+	local FilesystemMod = tryLoad("core/filesystem.lua")
+	BeatX.Filesystem = FilesystemMod
+	local SettingsMod = tryLoad("core/settingsstore.lua")
+	if SettingsMod then
+		BeatX.Settings = SettingsMod.new(FilesystemMod)
+		pcall(function()
+			BeatX.Settings:Load()
+		end)
+		-- Mirror persisted values into the Config.BeatX view.
+		BeatX.Config.BeatX = BeatX.Settings:GetAll()
+		BeatX.Config.UI.Theme = BeatX.Settings:Get("Theme")
+	else
+		BeatX.Config.BeatX = BeatX.Config.BeatX or {
+			Language = "한국어",
+			Theme = "Dark",
+			AnimationDuration = 0.25,
+		}
+	end
+	local ThemeMod = tryLoad("core/theme.lua")
+	if ThemeMod then
+		BeatX.Theme = ThemeMod.new(BeatX.Settings)
+	end
+	local LocalizationMod = tryLoad("core/localization.lua")
+	if LocalizationMod then
+		BeatX.Localization = LocalizationMod.new(BeatX.Settings)
+	end
+	local AnimationMod = tryLoad("core/animation.lua")
+	if AnimationMod then
+		BeatX.Animation = AnimationMod.new(BeatX.Settings)
+	end
+	-- Preload UI modules. menu.lua reaches them only via BeatX.Modules.
+	BeatX.Modules = BeatX.Modules or {}
+	BeatX.Modules.RowFactory = tryLoad("ui/rowfactory.lua")
+	BeatX.Modules.Category = tryLoad("ui/category.lua")
+	BeatX.Modules.Window = tryLoad("ui/window.lua")
+	BeatX.Modules.SearchIndex = tryLoad("core/searchindex.lua")
+	local Components = {}
+	Components.Button = tryLoad("ui/components/button.lua")
+	Components.Input = tryLoad("ui/components/input.lua")
+	Components.Dropdown = tryLoad("ui/components/dropdown.lua")
+	BeatX.Modules.Components = Components
+
 	updateLoading("Loading WindUI...", 66)
 	BeatX.WindUI = loadstring(game:HttpGet(WINDUI_URL, true))()
 	updateLoading("Preparing feature manager...", 72)
@@ -188,9 +248,6 @@ function Main.Start()
 		end,
 	}
 	BeatX.UI:Initialize()
-	BeatX.UI:CreateMenu()
-	updateLoading("Initializing user interface...", 78)
-
 	local featureFiles = {
 		"features/beatx.lua",
 		"features/creator.lua",
@@ -201,12 +258,49 @@ function Main.Start()
 		"features/utility.lua",
 		"features/speedhack.lua",
 	}
+	-- Register first so the menu can read the BeatX CategoryDef.
+	-- Register only invokes Init, so it has no menu dependency.
 	for _, path in ipairs(featureFiles) do
 		BeatX.FeatureManager:Register(loadModule(path))
 	end
+	BeatX.UI:CreateMenu()
+	updateLoading("Initializing user interface...", 78)
+
 	updateLoading("Registering features...", 86)
 
 	BeatX.FeatureManager:EnableAll(BeatX.Config.Features)
+	-- SearchIndex needs completed registration.
+	if BeatX.Modules.SearchIndex then
+		local ok, idx = pcall(function()
+			return BeatX.Modules.SearchIndex.new(BeatX.FeatureManager)
+		end)
+		if ok then
+			BeatX.SearchIndex = idx
+		end
+	end
+	-- Attach the Window wrapper. Legacy Menu toggle survives failure.
+	if BeatX.Modules.Window then
+		pcall(function()
+			BeatX.Window = BeatX.Modules.Window.Attach(BeatX.Menu, {
+				Animation = BeatX.Animation,
+				Theme = BeatX.Theme,
+				Localization = BeatX.Localization,
+			})
+		end)
+	end
+	-- Keep the Config.BeatX view in sync with Settings changes.
+	if BeatX.Settings and type(BeatX.Settings.Subscribe) == "function" then
+		for _, key in ipairs({ "Language", "Theme", "AnimationDuration" }) do
+			BeatX.Settings:Subscribe(key, function(value)
+				if BeatX.Config.BeatX then
+					BeatX.Config.BeatX[key] = value
+				end
+				if key == "Theme" then
+					BeatX.Config.UI.Theme = value
+				end
+			end)
+		end
+	end
 	installMenuToggle()
 	updateLoading("Enabling features...", 94)
 	BeatX.Started = true
@@ -228,6 +322,18 @@ function BeatX:Destroy()
 			self.Menu:Destroy()
 		end)
 	end
+	if self.Window and type(self.Window.Destroy) == "function" then
+		pcall(function()
+			self.Window:Destroy()
+		end)
+	end
+	self.Window = nil
+	self.SearchIndex = nil
+	self.Theme = nil
+	self.Localization = nil
+	self.Animation = nil
+	self.Settings = nil
+	self.Modules = nil
 	self.Menu = nil
 	if self.UI then
 		self.UI.Menu = nil

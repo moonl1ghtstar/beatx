@@ -1,5 +1,8 @@
 return {
 	Name = "Status",
+	Category = "Status",
+	Description = "Status options",
+	Keywords = { "status" },
 	Enabled = false,
 
 	Init = function(self, BeatX)

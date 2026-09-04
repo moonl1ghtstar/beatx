@@ -1,5 +1,8 @@
 return {
 	Name = "Speedhack",
+	Category = "Speedhack",
+	Description = "Speedhack options",
+	Keywords = { "speedhack", "speed" },
 	Enabled = false,
 
 	Init = function(self, BeatX)

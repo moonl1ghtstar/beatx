@@ -21,10 +21,29 @@ function FeatureManager:Register(feature)
 	assert(type(feature) == "table" and type(feature.Name) == "string", "Invalid feature")
 	assert(not self.Features[feature.Name], "Feature already registered: " .. feature.Name)
 	feature.Enabled = false
+	-- Search metadata defaults. No lifecycle impact; existing
+	-- features without these fields keep working unchanged.
+	if type(feature.Category) ~= "string" then
+		feature.Category = feature.Name
+	end
+	if type(feature.Description) ~= "string" then
+		feature.Description = ""
+	end
+	if type(feature.Keywords) ~= "table" then
+		feature.Keywords = {}
+	end
 	if invoke(feature, "Init", self.Context) then
 		self.Features[feature.Name] = feature
 	end
 	return feature
+end
+
+function FeatureManager:GetAll()
+	local out = {}
+	for _, feature in pairs(self.Features) do
+		table.insert(out, feature)
+	end
+	return out
 end
 
 function FeatureManager:Get(name)

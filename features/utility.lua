@@ -1,5 +1,8 @@
 return {
 	Name = "Utility",
+	Category = "Utility",
+	Description = "Utility tools",
+	Keywords = { "utility" },
 	Enabled = false,
 
 	Init = function(self, BeatX)

@@ -95,9 +95,9 @@ local ROW_H   = 22
 local HDR_H   = 24
 local SEP_H   = 1
 
--- 8 categories, each with one "Test" demo item
+-- 7 legacy categories. BeatX is built separately from its CategoryDef.
+-- Never add BeatX to CATS (prevents duplicate creation).
 local CATS = {
-	{ Name = "BeatX",      Items = { "Test" } },
 	{ Name = "Creator",    Items = { "Test" } },
 	{ Name = "Cosmetic",   Items = { "Test" } },
 	{ Name = "Level",      Items = { "Test" } },
@@ -202,6 +202,10 @@ local function buildRow(parent, label)
 	row.MouseEnter:Connect(function()        hov = true;  if not on then refresh() end end)
 	row.MouseLeave:Connect(function()        hov = false; if not on then refresh() end end)
 
+	-- Search key for filtering. No behavior change.
+	pcall(function()
+		row:SetAttribute("BeatXSearchKey", tostring(label))
+	end)
 	row.Parent = parent
 	return row
 end
@@ -348,7 +352,33 @@ local function buildColumn(def, parentRow)
 		end
 	end)
 
-	return { Slot = slot, Container = container, Wrap = wrap }
+	-- Search filter needs Content/Header access. Existing fields kept.
+	return { Slot = slot, Container = container, Wrap = wrap, Header = hdr, Content = content, Def = def }
+end
+
+-- Resolves the BeatX definition, preferring the registered feature.
+local function getBeatXDef(BeatX)
+	if BeatX and BeatX.FeatureManager and type(BeatX.FeatureManager.Get) == "function" then
+		local ok, feature = pcall(function()
+			return BeatX.FeatureManager:Get("BeatX")
+		end)
+		if ok and type(feature) == "table" and type(feature.CategoryDef) == "table" then
+			return feature.CategoryDef
+		end
+	end
+		-- Fallback mirrors the 4 items of features/beatx.lua.
+	return {
+		Name = "BeatX",
+		Items = {
+			{ type = "search", key = "feature_search" },
+			{ type = "dropdown", key = "language", labelKey = "language_settings",
+				options = { "한국어", "English" }, default = "한국어" },
+			{ type = "button", key = "theme", labelKey = "theme",
+				default = "Dark" },
+			{ type = "button", key = "animation_duration", labelKey = "animation_duration",
+				default = 0.25, min = 0, max = 1, step = 0.05 },
+		},
+	}
 end
 
 -- ── Menu.new ───────────────────────────────────────────────────────────────────
@@ -435,12 +465,290 @@ function Menu.new(BeatX)
 	bottomLayout.Parent = bottomRow
 
 	local columns = {}
+	local beatXCategory = nil
+	local beatXRows = {}
+	local extraUnsubs = {}
+	local function trackUnsub(fn)
+		if type(fn) == "function" then
+			table.insert(extraUnsubs, fn)
+		end
+	end
+
+	-- Closes any open BeatX dropdown overlay.
+	local function closePopup()
+		for _, row in pairs(beatXRows) do
+			if type(row) == "table" and type(row.Close) == "function" then
+				pcall(function()
+					row:Close()
+				end)
+			end
+		end
+	end
+
+	-- Search filter dims toggle rows of the 7 legacy columns.
+	-- BeatX setting rows are never filtered.
+	local function applySearchFilter(query)
+		local q = string.lower(tostring(query or ""):gsub("^%s+", ""):gsub("%s+$", ""))
+		for _, col in ipairs(columns) do
+			if not col.IsBeatX and col.Content then
+				for _, child in ipairs(col.Content:GetChildren()) do
+					if child:IsA("TextButton") then
+						local key = ""
+						pcall(function()
+							key = tostring(child:GetAttribute("BeatXSearchKey") or "")
+						end)
+						if key == "" then
+							local lab = child:FindFirstChildOfClass("TextLabel")
+							if lab then
+								key = lab.Text
+							end
+						end
+						local show = (q == "") or (string.find(string.lower(key), q, 1, true) ~= nil)
+						local lab = child:FindFirstChildOfClass("TextLabel")
+						local bar = child:FindFirstChild("AccentBar")
+						if show then
+							if lab then
+								lab.TextTransparency = 0
+							end
+							if bar then
+								bar.Visible = true
+							end
+							child.Active = true
+						else
+							if lab then
+								lab.TextTransparency = 0.6
+							end
+							if bar then
+								bar.Visible = false
+							end
+						end
+					end
+				end
+			end
+		end
+	end
+
+	local function focusFirstMatch(query)
+		local q = tostring(query or ""):gsub("^%s+", ""):gsub("%s+$", "")
+		if q == "" then
+			return
+		end
+		-- Priority 1: focus the first SearchIndex result category.
+		local targetCategory = nil
+		if BeatX and BeatX.SearchIndex and type(BeatX.SearchIndex.Search) == "function" then
+			local ok, results = pcall(function()
+				return BeatX.SearchIndex:Search(q)
+			end)
+			if ok and type(results) == "table" and results[1] then
+				targetCategory = results[1].Category
+			end
+		end
+		-- Priority 2: direct row label match.
+		if not targetCategory then
+			local lq = string.lower(q)
+			for _, col in ipairs(columns) do
+				if not col.IsBeatX and col.Content and col.Def then
+					for _, child in ipairs(col.Content:GetChildren()) do
+						if child:IsA("TextButton") then
+							local lab = child:FindFirstChildOfClass("TextLabel")
+							if lab and string.find(string.lower(lab.Text), lq, 1, true) then
+								targetCategory = col.Def.Name
+								break
+							end
+						end
+					end
+				end
+				if targetCategory then
+					break
+				end
+			end
+		end
+		if not targetCategory then
+			return
+		end
+		for _, col in ipairs(columns) do
+			if col.Def and col.Def.Name == targetCategory and col.Header then
+				local hdr = col.Header
+				local orig = hdr.BackgroundColor3
+				pcall(function()
+					hdr.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+				end)
+				task.delay(0.35, function()
+					pcall(function()
+						hdr.BackgroundColor3 = orig
+					end)
+				end)
+				break
+			end
+		end
+	end
+
+	local function buildBeatXColumn()
+		local mods = BeatX and BeatX.Modules or nil
+		local def = getBeatXDef(BeatX)
+		-- Legacy column fallback when modules are missing (no regression).
+		if not (mods and mods.Category and mods.RowFactory and mods.Components) then
+			local col = buildColumn({ Name = "BeatX", Items = { "Test" } }, topRow)
+			col.Slot.LayoutOrder = 1
+			col.Def = { Name = "BeatX" }
+			return col, nil
+		end
+		local settings = BeatX.Settings
+		local theme = BeatX.Theme
+		local localization = BeatX.Localization
+		local animation = BeatX.Animation
+		local function currentValue(key, fallback)
+			if settings and type(settings.Get) == "function" then
+				local v = settings:Get(key)
+				if v ~= nil then
+					return v
+				end
+			end
+			if key == "Language" and localization and type(localization.GetLanguage) == "function" then
+				return localization:GetLanguage()
+			end
+			if key == "Theme" and theme and type(theme.CurrentName) == "function" then
+				return theme:CurrentName()
+			end
+			if key == "AnimationDuration" and animation and type(animation.GetDuration) == "function" then
+				return animation:GetDuration()
+			end
+			return fallback
+		end
+		-- Injects live values into the CategoryDef (still 4 items).
+		local resolved = { Name = def.Name, Items = {} }
+		for _, item in ipairs(def.Items) do
+			local copy = {}
+			for k, v in pairs(item) do
+				copy[k] = v
+			end
+			if copy.key == "language" then
+				copy.value = currentValue("Language", copy.default)
+			elseif copy.key == "theme" then
+				copy.value = currentValue("Theme", copy.default)
+			elseif copy.key == "animation_duration" then
+				local v = currentValue("AnimationDuration", copy.default)
+				copy.value = string.format("%.2f", tonumber(v) or 0.25)
+			end
+			table.insert(resolved.Items, copy)
+		end
+		local ctx = {
+			Theme = theme,
+			Localization = localization,
+			Settings = settings,
+			Animation = animation,
+			RowFactory = mods.RowFactory,
+			Components = mods.Components,
+			OverlayParent = gui,
+			OnSearchQuery = applySearchFilter,
+			OnSearchEnter = focusFirstMatch,
+			OnLanguageSelect = function(opt)
+				if localization and type(localization.SetLanguage) == "function" then
+					localization:SetLanguage(opt)
+				elseif settings and type(settings.Set) == "function" then
+					settings:Set("Language", opt)
+				end
+			end,
+			OnBeatXAction = function(actionKey)
+				if actionKey == "theme" then
+					local nextName = nil
+					if theme and type(theme.Cycle) == "function" then
+						theme:Cycle()
+						nextName = theme:CurrentName()
+					elseif settings and type(settings.Get) == "function" then
+						local order = { "Dark", "Light", "Midnight" }
+						local cur = settings:Get("Theme")
+						for i, n in ipairs(order) do
+							if n == cur then
+								nextName = order[(i % #order) + 1]
+								break
+							end
+						end
+						nextName = nextName or order[1]
+						settings:Set("Theme", nextName)
+					end
+					local themeRow = beatXRows["theme"]
+					if nextName and themeRow and type(themeRow.SetValue) == "function" then
+						themeRow:SetValue(nextName)
+					end
+				elseif actionKey == "animation_duration" then
+					local step = 0.05
+					local cur = currentValue("AnimationDuration", 0.25)
+					if type(cur) == "string" then
+						cur = tonumber(cur) or 0.25
+					end
+					local next = cur + step
+					if next > 1.0001 then
+						next = 0
+					end
+					if animation and type(animation.SetDuration) == "function" then
+						animation:SetDuration(next)
+						next = animation:GetDuration()
+					elseif settings and type(settings.Set) == "function" then
+						settings:Set("AnimationDuration", next)
+					end
+					local animRow = beatXRows["animation_duration"]
+					if animRow and type(animRow.SetValue) == "function" then
+						animRow:SetValue(string.format("%.2f", next))
+					end
+				end
+			end,
+		}
+		local category = mods.Category.new(resolved, topRow, ctx, {
+			COL_W = COL_W,
+			HDR_H = HDR_H,
+			ROW_H = ROW_H,
+			SEP_H = SEP_H,
+		})
+		category.Slot.LayoutOrder = 1
+		for _, row in ipairs(category.Rows) do
+			if row and row.Key then
+				beatXRows[row.Key] = row
+			end
+		end
+		-- Syncs the right-side value labels on external changes.
+		if settings and type(settings.Subscribe) == "function" then
+			trackUnsub(settings:Subscribe("Language", function(v)
+				local r = beatXRows["language"]
+				if r and type(r.SetValue) == "function" then
+					r:SetValue(v)
+				end
+			end))
+			trackUnsub(settings:Subscribe("Theme", function(v)
+				local r = beatXRows["theme"]
+				if r and type(r.SetValue) == "function" then
+					r:SetValue(v)
+				end
+			end))
+			trackUnsub(settings:Subscribe("AnimationDuration", function(v)
+				local r = beatXRows["animation_duration"]
+				if r and type(r.SetValue) == "function" then
+					r:SetValue(string.format("%.2f", tonumber(v) or 0))
+				end
+			end))
+		end
+		local col = {
+			Slot = category.Slot,
+			Container = category.Container,
+			Wrap = category.Wrap,
+			Header = category.Header,
+			Content = category.Content,
+			Category = category,
+			Def = resolved,
+			IsBeatX = true,
+		}
+		return col, category
+	end
+
+	local beatXCol, category = buildBeatXColumn()
+	beatXCategory = category
+	columns[1] = beatXCol
 	for i, def in ipairs(CATS) do
 		local parentRow = (def.Name == "Speedhack") and bottomRow or topRow
 		local col = buildColumn(def, parentRow)
-		col.Slot.LayoutOrder = i
+		col.Slot.LayoutOrder = i + 1
 		col.Def = def
-		columns[i] = col
+		columns[i + 1] = col
 	end
 
 	local dragging   = false
@@ -478,17 +786,29 @@ function Menu.new(BeatX)
 	menu.Canvas       = canvas
 	menu.Blocker      = blocker
 	menu.Columns      = columns
+	menu.BeatXCategory = beatXCategory
+	menu.BeatXRows    = beatXRows
 	menu.DragConns    = { dEnd, dMove }
 	menu.Visible      = false
 	menu.Destroyed    = false
 	menu.OnUtility    = {}
 	menu._tweens      = {}
+	menu._closePopup = closePopup
+	menu._extraUnsubs = extraUnsubs
 
 	_instance = menu
 	return menu
 end
 
 function Menu.Get() return _instance end
+
+function Menu:RefreshText()
+	if self.BeatXCategory and type(self.BeatXCategory.RefreshText) == "function" then
+		pcall(function()
+			self.BeatXCategory:RefreshText()
+		end)
+	end
+end
 
 -- ── Open / Close ───────────────────────────────────────────────────────────────
 -- NOTE: Light Shift-style open/close animation temporarily disabled (hard to
@@ -512,6 +832,9 @@ end
 function Menu:Close()
 	if not self.Visible then return end
 	self:_stopAnims()
+	if self._closePopup then
+		pcall(self._closePopup)
+	end
 	self.Visible = false
 	self.Blocker.Visible = false
 	self.Gui.Enabled = false
@@ -540,6 +863,20 @@ function Menu:Destroy()
 	if self.Destroyed then return end
 	self.Destroyed = true
 	self:_stopAnims()
+	if self._closePopup then
+		pcall(self._closePopup)
+	end
+	if self._extraUnsubs then
+		for _, u in ipairs(self._extraUnsubs) do
+			pcall(u)
+		end
+	end
+	if self.BeatXCategory and type(self.BeatXCategory.Destroy) == "function" then
+		pcall(function()
+			self.BeatXCategory:Destroy()
+		end)
+	end
+	self.BeatXCategory = nil
 	for _, c in ipairs(self.DragConns) do c:Disconnect() end
 	if self.Gui then self.Gui:Destroy() end
 	if _instance == self then _instance = nil end

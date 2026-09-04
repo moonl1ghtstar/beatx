@@ -1,5 +1,8 @@
 return {
 	Name = "Level",
+	Category = "Level",
+	Description = "Level options",
+	Keywords = { "level" },
 	Enabled = false,
 
 	Init = function(self, BeatX)

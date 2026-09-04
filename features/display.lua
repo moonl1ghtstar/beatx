@@ -1,5 +1,8 @@
 return {
 	Name = "Display",
+	Category = "Display",
+	Description = "Display options",
+	Keywords = { "display" },
 	Enabled = false,
 
 	Init = function(self, BeatX)

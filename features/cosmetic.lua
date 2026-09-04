@@ -1,5 +1,8 @@
 return {
 	Name = "Cosmetic",
+	Category = "Cosmetic",
+	Description = "Cosmetic options",
+	Keywords = { "cosmetic" },
 	Enabled = false,
 
 	Init = function(self, BeatX)
